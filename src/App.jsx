@@ -1,9 +1,9 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { configured } from './lib/supabase.js'
 import { AuthProvider, useAuth } from './lib/auth.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
-import ResetPassword from './pages/ResetPassword.jsx'
+import Landing from './pages/Landing.jsx'
 import Home from './pages/Home.jsx'
 import Projects from './pages/Projects.jsx'
 import Scripts from './pages/Scripts.jsx'
@@ -39,10 +39,9 @@ function SetupScreen() {
 
 function RequireAuth({ children }) {
   const { loading, user, profile, profileError, signOut } = useAuth()
-  const loc = useLocation()
 
   if (loading) return <FullMessage><p className="muted-text">Loading…</p></FullMessage>
-  if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
+  if (!user) return <Navigate to="/" replace />
   if (profileError)
     return (
       <FullMessage title="Your account could not load">
@@ -63,7 +62,7 @@ function RequireAuth({ children }) {
 function LoginRoute() {
   const { loading, user } = useAuth()
   if (loading) return <FullMessage><p className="muted-text">Loading…</p></FullMessage>
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to="/home" replace />
   return <Login />
 }
 
@@ -72,8 +71,8 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<LoginRoute />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           element={
             <RequireAuth>
@@ -81,7 +80,7 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/scripts" element={<Scripts />} />
           <Route path="/project/:projectId" element={<ProjectLayout />}>

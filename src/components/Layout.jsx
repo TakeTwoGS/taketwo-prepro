@@ -5,16 +5,17 @@ import { useAuth } from '../lib/auth.jsx'
 export default function Layout() {
   const { user, beginner, setBeginner, signOut } = useAuth()
   const initial = (user?.email || '?').charAt(0).toUpperCase()
+  const picture = user?.user_metadata?.avatar_url || user?.user_metadata?.picture
 
   return (
     <div className="app">
       <header className="topbar">
-        <Link to="/" className="brand">
+        <Link to="/home" className="brand">
           <span className="brand-dot" aria-hidden="true" />
           TakeTwo PrePro
         </Link>
         <nav className="main-nav" aria-label="Main">
-          <NavLink to="/" end>
+          <NavLink to="/home" end>
             Home
           </NavLink>
           <NavLink to="/projects">Projects</NavLink>
@@ -31,7 +32,7 @@ export default function Layout() {
             className="account-menu"
             items={[{ heading: user?.email }, { divider: true }, { label: 'Sign out', onClick: signOut }]}
           >
-            <span className="avatar">{initial}</span>
+            <span className="avatar">{picture ? <img src={picture} alt="" referrerPolicy="no-referrer" /> : initial}</span>
           </Menu>
         </div>
       </header>
