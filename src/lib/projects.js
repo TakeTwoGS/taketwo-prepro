@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { todayStr } from './dates.js'
 import { supabase } from './supabase.js'
 import { analyze, newBlock, parsePlainText } from './screenplay.js'
 import { buildDemo, DEMO_TITLE } from './demo.js'
@@ -80,16 +81,27 @@ export async function duplicateProject(project) {
     sceneInfo: data.scene_info,
   })
 
-  // Carry over the storyboard, shot list, characters, locations and breakdown.
+  // Carry over the storyboard, shot list, breakdown, characters, locations, cast and crew, schedule, gear, and tasks.
   // This part is "best effort": if something fails, the script copy still exists.
   try {
-    const [shots, chars, locs, tags] = await Promise.all([
-      supabase.from('shots').select('*').eq('project_id', project.id),
-      supabase.from('characters').select('*').eq('project_id', project.id),
-      supabase.from('locations').select('*').eq('project_id', project.id),
-      supabase.from('breakdown_items').select('*').eq('project_id', project.id),
+    const grab = (t) => supabase.from(t).select('*').eq('project_id', project.id)
+    const [shots, chars, locs, tags, people, days, uses, tasks] = await Promise.all([
+      grab('shots'),
+      grab('characters'),
+      grab('locations'),
+      grab('breakdown_items'),
+      grab('people'),
+      grab('shoot_days'),
+      grab('equipment_uses'),
+      grab('tasks'),
     ])
-    const strip = ({ id, created_at, updated_at, user_id, ...rest }) => ({ ...rest, id: uuid(), project_id: copy.id })
+    const maps = { shots: new Map(), people: new Map(), days: new Map() }
+    const strip = (row, map) => {
+      const { id, created_at, updated_at, user_id, ...rest } = row
+      const fresh = uuid()
+      if (map) map.set(id, fresh)
+      return { ...rest, id: fresh, project_id: copy.id }
+    }
 
     const pathMap = new Map()
     const copyPath = async (p) => {
@@ -98,17 +110,41 @@ export async function duplicateProject(project) {
       return pathMap.get(p)
     }
     const shotRows = []
-    for (const r of shots.data || []) shotRows.push({ ...strip(r), image_path: await copyPath(r.image_path) })
+    for (const r of shots.data || []) shotRows.push({ ...strip(r, maps.shots), image_path: await copyPath(r.image_path) })
     const charRows = []
     for (const r of chars.data || []) charRows.push({ ...strip(r), images: (await Promise.all((r.images || []).map(copyPath))).filter(Boolean) })
     const locRows = []
     for (const r of locs.data || []) locRows.push({ ...strip(r), photos: (await Promise.all((r.photos || []).map(copyPath))).filter(Boolean) })
-    const tagRows = (tags.data || []).map(strip)
+    const tagRows = (tags.data || []).map((r) => strip(r))
+    const peopleRows = []
+    for (const r of people.data || []) peopleRows.push({ ...strip(r, maps.people), photo_path: await copyPath(r.photo_path) })
 
+    const remapKeys = (obj) => Object.fromEntries(Object.entries(obj || {}).map(([k, v]) => [maps.people.get(k) || k, v]))
+    const dayRows = (days.data || []).map((r) => {
+      const row = strip(r, maps.days)
+      const cs = r.call_sheet || {}
+      return {
+        ...row,
+        call_sheet: { ...cs, calls: remapKeys(cs.calls), crew_off: (cs.crew_off || []).map((id) => maps.people.get(id) || id) },
+      }
+    })
+    const useRows = (uses.data || []).map((r) => {
+      const row = strip(r)
+      if (r.scope === 'shot') row.target_id = maps.shots.get(r.target_id) || r.target_id
+      if (r.scope === 'day') row.target_id = maps.days.get(r.target_id) || r.target_id
+      return row
+    })
+    const taskRows = (tasks.data || []).map((r) => ({ ...strip(r), person_id: r.person_id ? maps.people.get(r.person_id) || null : null }))
+
+    // Order matters: tasks point at people
     if (shotRows.length) await supabase.from('shots').insert(shotRows)
     if (charRows.length) await supabase.from('characters').insert(charRows)
     if (locRows.length) await supabase.from('locations').insert(locRows)
     if (tagRows.length) await supabase.from('breakdown_items').insert(tagRows)
+    if (peopleRows.length) await supabase.from('people').insert(peopleRows)
+    if (dayRows.length) await supabase.from('shoot_days').insert(dayRows)
+    if (useRows.length) await supabase.from('equipment_uses').insert(useRows)
+    if (taskRows.length) await supabase.from('tasks').insert(taskRows)
     if (project.board_ratio) await supabase.from('projects').update({ board_ratio: project.board_ratio }).eq('id', copy.id)
   } catch (e) {
     console.warn('Could not copy everything into the duplicate', e)
@@ -132,4 +168,32 @@ export async function deleteProject(id) {
   const { error } = await supabase.from('projects').delete().eq('id', id)
   if (error) throw error
   if (userId) removeProjectFiles(userId, id) // clean up pictures (not waiting for it)
+}
+
+// Things shown on the Home page across all projects: upcoming shoot days and open tasks
+export function useDashboardExtras() {
+  const [data, setData] = useState({ days: [], tasks: [] })
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      try {
+        const [d, t] = await Promise.all([
+          supabase.from('shoot_days').select('id, project_id, label, date, call_time, scene_ids').gte('date', todayStr()).order('date', { ascending: true }).limit(5),
+          supabase
+            .from('tasks')
+            .select('id, project_id, name, due_date, priority, status')
+            .neq('status', 'Done')
+            .order('due_date', { ascending: true, nullsFirst: false })
+            .limit(8),
+        ])
+        if (live) setData({ days: d.data || [], tasks: t.data || [] })
+      } catch {
+        /* the dashboard just shows nothing extra */
+      }
+    })()
+    return () => {
+      live = false
+    }
+  }, [])
+  return data
 }

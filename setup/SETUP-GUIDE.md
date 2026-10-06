@@ -1,9 +1,11 @@
 # TakeTwo PrePro: setup guide
 
-## Updating to Zip 2 (storyboards, shot lists, breakdown, characters, locations)
+## Updating to the latest zip (Zip 3: schedule, cast and crew, equipment, call sheets, tasks)
+
+Each new zip needs the same two steps:
 
 1. Supabase, SQL Editor, New query. Paste ALL of `supabase-setup.sql` and click Run.
-   It is safe to run again. It adds the new tables and a private "project-images" storage bucket.
+   It is safe to run again. It adds any new tables (and the private "project-images" storage bucket from Zip 2).
    If Supabase complains about the storage part, create the bucket by hand instead:
    Storage, New bucket, name it `project-images`, leave "Public bucket" OFF, then run the SQL again.
 2. Upload this project's files to GitHub (replace the old ones). Vercel redeploys on its own.

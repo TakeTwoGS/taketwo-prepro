@@ -263,3 +263,126 @@ create policy "own images change" on storage.objects for update to authenticated
 drop policy if exists "own images delete" on storage.objects;
 create policy "own images delete" on storage.objects for delete to authenticated
   using (bucket_id = 'project-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- =====================================================================
+-- ZIP 3: schedule, cast and crew, equipment, call sheets, tasks
+-- (Safe to run again. Run the whole file.)
+-- =====================================================================
+
+-- ---------- Cast and crew ----------
+create table if not exists public.people (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  kind text not null default 'crew' check (kind in ('cast', 'crew')),
+  name text not null,
+  role text not null default '',
+  plays text not null default '',
+  email text not null default '',
+  phone text not null default '',
+  notes text not null default '',
+  photo_path text,
+  unavailable jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists people_project_idx on public.people (project_id);
+
+-- ---------- Shoot days (the schedule, and the call sheet for each day) ----------
+create table if not exists public.shoot_days (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  label text not null default 'Day 1',
+  date date,
+  call_time text not null default '08:00',
+  scene_ids jsonb not null default '[]'::jsonb,
+  equip_checked jsonb not null default '{}'::jsonb,
+  call_sheet jsonb not null default '{}'::jsonb,
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists shoot_days_project_idx on public.shoot_days (project_id, date);
+
+-- ---------- Equipment: your own gear (shared across all your projects) ----------
+create table if not exists public.equipment_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  category text not null default 'Other',
+  quantity integer not null default 1,
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Which gear is used where: the whole project, one scene, one shot, or one shoot day
+create table if not exists public.equipment_uses (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  item_id uuid not null references public.equipment_items(id) on delete cascade,
+  scope text not null check (scope in ('project', 'scene', 'shot', 'day')),
+  target_id text,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists equipment_uses_unique
+  on public.equipment_uses (project_id, item_id, scope, coalesce(target_id, ''));
+
+-- ---------- Tasks ----------
+create table if not exists public.tasks (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  person_id uuid references public.people(id) on delete set null,
+  due_date date,
+  priority text not null default 'Medium',
+  status text not null default 'To do',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists tasks_project_idx on public.tasks (project_id);
+
+-- ---------- Privacy ----------
+alter table public.people enable row level security;
+alter table public.shoot_days enable row level security;
+alter table public.equipment_items enable row level security;
+alter table public.equipment_uses enable row level security;
+alter table public.tasks enable row level security;
+
+drop policy if exists "own people" on public.people;
+create policy "own people" on public.people for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "own shoot days" on public.shoot_days;
+create policy "own shoot days" on public.shoot_days for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "own equipment" on public.equipment_items;
+create policy "own equipment" on public.equipment_items for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "own equipment uses" on public.equipment_uses;
+create policy "own equipment uses" on public.equipment_uses for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "own tasks" on public.tasks;
+create policy "own tasks" on public.tasks for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+grant select, insert, update, delete on public.people to authenticated;
+grant select, insert, update, delete on public.shoot_days to authenticated;
+grant select, insert, update, delete on public.equipment_items to authenticated;
+grant select, insert, update, delete on public.equipment_uses to authenticated;
+grant select, insert, update, delete on public.tasks to authenticated;
+
+drop trigger if exists people_touch on public.people;
+create trigger people_touch before update on public.people
+  for each row execute function public.touch_updated_at();
+drop trigger if exists shoot_days_touch on public.shoot_days;
+create trigger shoot_days_touch before update on public.shoot_days
+  for each row execute function public.touch_updated_at();
+drop trigger if exists equipment_items_touch on public.equipment_items;
+create trigger equipment_items_touch before update on public.equipment_items
+  for each row execute function public.touch_updated_at();
+drop trigger if exists tasks_touch on public.tasks;
+create trigger tasks_touch before update on public.tasks
+  for each row execute function public.touch_updated_at();

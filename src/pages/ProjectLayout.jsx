@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast.jsx'
 import { useAuth } from '../lib/auth.jsx'
 import { useRows } from '../lib/rows.js'
 import { shotLabels, sortShots } from '../lib/shots.js'
+import { sortDays } from '../lib/schedule.js'
 
 export const useProject = () => useOutletContext()
 
@@ -19,13 +20,18 @@ export default function ProjectLayout() {
     let cancelled = false
     setState({ status: 'loading' })
     ;(async () => {
-      const [p, s, shotsRes, charsRes, locsRes, tagsRes] = await Promise.all([
+      const [p, s, shotsRes, charsRes, locsRes, tagsRes, peopleRes, daysRes, usesRes, tasksRes, gearRes] = await Promise.all([
         supabase.from('projects').select('*').eq('id', projectId).maybeSingle(),
         supabase.from('scripts').select('*').eq('project_id', projectId).maybeSingle(),
         supabase.from('shots').select('*').eq('project_id', projectId),
         supabase.from('characters').select('*').eq('project_id', projectId),
         supabase.from('locations').select('*').eq('project_id', projectId),
         supabase.from('breakdown_items').select('*').eq('project_id', projectId),
+        supabase.from('people').select('*').eq('project_id', projectId),
+        supabase.from('shoot_days').select('*').eq('project_id', projectId),
+        supabase.from('equipment_uses').select('*').eq('project_id', projectId),
+        supabase.from('tasks').select('*').eq('project_id', projectId),
+        supabase.from('equipment_items').select('*'),
       ])
       if (cancelled) return
       if (p.error) return setState({ status: 'error', message: p.error.message })
@@ -56,6 +62,12 @@ export default function ProjectLayout() {
         locations: locsRes.data || [],
         tags: tagsRes.data || [],
         extrasError,
+        people: peopleRes.data || [],
+        days: daysRes.data || [],
+        uses: usesRes.data || [],
+        tasks: tasksRes.data || [],
+        gear: gearRes.data || [],
+        prodError: [peopleRes, daysRes, usesRes, tasksRes, gearRes].find((r) => r.error)?.error?.message || '',
       })
     })()
     return () => {
@@ -135,7 +147,13 @@ export function Workspace({ initial }) {
   const characters = useRows({ table: 'characters', projectId, initial: initial.characters || [], track })
   const locations = useRows({ table: 'locations', projectId, initial: initial.locations || [], track })
   const tags = useRows({ table: 'breakdown_items', projectId, initial: initial.tags || [], track })
-  const rowsDirty = shotsHook.dirty || characters.dirty || locations.dirty || tags.dirty
+  const people = useRows({ table: 'people', projectId, initial: initial.people || [], track })
+  const daysHook = useRows({ table: 'shoot_days', projectId, initial: initial.days || [], track })
+  const uses = useRows({ table: 'equipment_uses', projectId, initial: initial.uses || [], track })
+  const tasks = useRows({ table: 'tasks', projectId, initial: initial.tasks || [], track })
+  const gear = useRows({ table: 'equipment_items', projectId: null, initial: initial.gear || [], track })
+  const rowsDirty =
+    shotsHook.dirty || characters.dirty || locations.dirty || tags.dirty || people.dirty || daysHook.dirty || uses.dirty || tasks.dirty || gear.dirty
   const rowsDirtyRef = useRef(false)
   rowsDirtyRef.current = rowsDirty
 
@@ -194,11 +212,11 @@ export function Workspace({ initial }) {
   // The Save button and Ctrl+S: save right now and tell the person it worked
   const saveNow = useCallback(async () => {
     for (let i = 0; i < 50 && saving.current; i++) await new Promise((r) => setTimeout(r, 100))
-    await Promise.all([flushSave(), shotsHook.flush(), characters.flush(), locations.flush(), tags.flush()])
+    await Promise.all([flushSave(), shotsHook.flush(), characters.flush(), locations.flush(), tags.flush(), people.flush(), daysHook.flush(), uses.flush(), tasks.flush(), gear.flush()])
     for (let i = 0; i < 50 && saving.current; i++) await new Promise((r) => setTimeout(r, 100))
     if (failed.current || dbErrRef.current) toast('Could not save. Check your connection and try again.', 'error')
     else toast('Everything saved')
-  }, [flushSave, toast, shotsHook.flush, characters.flush, locations.flush, tags.flush])
+  }, [flushSave, toast, shotsHook.flush, characters.flush, locations.flush, tags.flush, people.flush, daysHook.flush, uses.flush, tasks.flush, gear.flush])
 
   const setBoardRatio = useCallback(
     (value) => {
@@ -270,6 +288,7 @@ export function Workspace({ initial }) {
 
   const sortedShots = useMemo(() => sortShots(shotsHook.rows), [shotsHook.rows])
   const labels = useMemo(() => shotLabels(sortedShots, analysis.scenes), [sortedShots, analysis.scenes])
+  const sortedDays = useMemo(() => sortDays(daysHook.rows), [daysHook.rows])
   const effectiveState =
     saveState === 'error' || dbError ? 'error' : saveState === 'saving' || busy > 0 ? 'saving' : saveState === 'dirty' || rowsDirty ? 'dirty' : 'saved'
 
@@ -281,6 +300,12 @@ export function Workspace({ initial }) {
     characters,
     locations,
     tags,
+    people,
+    days: { ...daysHook, rows: sortedDays },
+    uses,
+    tasks,
+    gear,
+    prodError: initial.prodError,
     boardRatio: project.board_ratio || '16:9',
     setBoardRatio,
     project,
@@ -329,11 +354,18 @@ export function Workspace({ initial }) {
         </NavLink>
         <NavLink to={`${base}/script`}>Script</NavLink>
         <NavLink to={`${base}/scenes`}>Scenes</NavLink>
+        <span className="tab-sep" aria-hidden="true" />
         <NavLink to={`${base}/breakdown`}>Breakdown</NavLink>
         <NavLink to={`${base}/characters`}>Characters</NavLink>
         <NavLink to={`${base}/locations`}>Locations</NavLink>
         <NavLink to={`${base}/storyboard`}>Storyboard</NavLink>
         <NavLink to={`${base}/shots`}>Shot list</NavLink>
+        <span className="tab-sep" aria-hidden="true" />
+        <NavLink to={`${base}/schedule`}>Schedule</NavLink>
+        <NavLink to={`${base}/crew`}>Cast &amp; crew</NavLink>
+        <NavLink to={`${base}/equipment`}>Equipment</NavLink>
+        <NavLink to={`${base}/callsheets`}>Call sheets</NavLink>
+        <NavLink to={`${base}/tasks`}>Tasks</NavLink>
       </nav>
       <div className="project-body">
         <Outlet context={ctx} />

@@ -6,6 +6,9 @@ import Hint from '../components/Hint.jsx'
 import StartPreProModal from '../components/StartPreProModal.jsx'
 import { fmtPages } from '../lib/screenplay.js'
 import { planPrePro } from '../lib/people.js'
+import { daysUntil, fmtDate, fmtTime, whenText } from '../lib/dates.js'
+import { dayEquipment, equipmentStatus } from '../lib/equipment.js'
+import { dayScenes } from '../lib/schedule.js'
 
 function Stat({ label, value, note, hint, icon: Icon, tone }) {
   return (
@@ -36,7 +39,7 @@ function Bar({ label, value, total, tone = 'violet' }) {
 }
 
 export default function Overview() {
-  const { project, analysis, blocks, openExport, shots, characters: charsApi, locations: locsApi, tags } = useProject()
+  const { project, analysis, blocks, openExport, shots, shotLabels, characters: charsApi, locations: locsApi, tags, people, days, uses, tasks, gear } = useProject()
   const [starting, setStarting] = useState(false)
   const { stats, scenes, locations, characters } = analysis
   const hasText = blocks.some((b) => (b.text || '').trim())
@@ -46,6 +49,18 @@ export default function Overview() {
   const frames = shots.rows.filter((s) => s.on_board).length
   const listed = shots.rows.filter((s) => s.in_list)
   const done = listed.filter((s) => s.status === 'Completed').length
+  const scenesById = useMemo(() => new Map(analysis.scenes.map((x) => [x.id, x])), [analysis.scenes])
+  const sceneNumbers = useMemo(() => new Map(analysis.scenes.map((x) => [x.id, x.number])), [analysis.scenes])
+  const nextDay = days.rows.find((d) => d.date && daysUntil(d.date) >= 0) || null
+  const nextEquip = nextDay
+    ? equipmentStatus(
+        dayEquipment({ day: nextDay, sceneList: dayScenes(nextDay, scenesById), uses: uses.rows, items: gear.rows, shots: shots.rows, labels: shotLabels, sceneNumbers }),
+        nextDay
+      )
+    : null
+  const castCount = people.rows.filter((p) => p.kind === 'cast').length
+  const crewCount = people.rows.length - castCount
+  const tasksLeft = tasks.rows.filter((t) => t.status !== 'Done').length
   const charsAdded = analysis.characters.length - plan.newCharacters.length
   const locsAdded = analysis.locations.length - plan.newLocations.length
 
@@ -121,6 +136,34 @@ export default function Overview() {
               <li>
                 <Link to={`${base}/shots`}>Shot list</Link>
                 <span>{done} of {listed.length} shots completed</span>
+              </li>
+            </ul>
+          </section>
+
+          <section className="card pad prepro">
+            <h2 className="card-title">Production</h2>
+            <ul className="prepro-list">
+              <li>
+                <Link to={`${base}/schedule`}>Next shoot</Link>
+                <span>
+                  {nextDay ? `${fmtDate(nextDay.date)}, ${fmtTime(nextDay.call_time)} (${whenText(nextDay.date)})` : days.rows.length ? 'No upcoming dates set' : 'No shoot days yet'}
+                </span>
+              </li>
+              <li>
+                <Link to={`${base}/schedule`}>Shoot days</Link>
+                <span>{days.rows.length}</span>
+              </li>
+              <li>
+                <Link to={`${base}/crew`}>Cast &amp; crew</Link>
+                <span>{castCount} cast, {crewCount} crew</span>
+              </li>
+              <li>
+                <Link to={`${base}/equipment`}>Equipment checklist</Link>
+                <span>{nextEquip && nextEquip.total ? `${nextEquip.checked} of ${nextEquip.total} ready` : 'Nothing assigned to the next shoot'}</span>
+              </li>
+              <li>
+                <Link to={`${base}/tasks`}>Tasks remaining</Link>
+                <span>{tasksLeft}</span>
               </li>
             </ul>
           </section>

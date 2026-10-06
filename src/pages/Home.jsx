@@ -4,7 +4,8 @@ import { Clapperboard, FilePlus2, FileText, FolderKanban, Plus } from 'lucide-re
 import ProjectCard from '../components/ProjectCard.jsx'
 import NewProjectModal from '../components/NewProjectModal.jsx'
 import { useAuth } from '../lib/auth.jsx'
-import { scriptOf, useProjectList } from '../lib/projects.js'
+import { scriptOf, useDashboardExtras, useProjectList } from '../lib/projects.js'
+import { fmtDate, fmtTime, whenText, fmtDateShort, daysUntil } from '../lib/dates.js'
 import { fmtPages } from '../lib/screenplay.js'
 import { timeAgo } from '../lib/format.js'
 import { toneFor } from '../lib/look.js'
@@ -18,6 +19,8 @@ export default function Home() {
   const nav = useNavigate()
   const { user } = useAuth()
   const { projects, error, reload } = useProjectList()
+  const extras = useDashboardExtras()
+  const titleOf = (id) => (projects || []).find((p) => p.id === id)?.title || 'A project'
   const [modal, setModal] = useState(null) // 'new' | 'import'
 
   const first = (user?.user_metadata?.full_name || '').split(' ')[0]
@@ -125,6 +128,59 @@ export default function Home() {
             ))}
           </div>
         </section>
+      )}
+
+      {(extras.days.length > 0 || extras.tasks.length > 0) && (
+        <div className="home-two">
+          <section>
+            <div className="section-head">
+              <h2>Upcoming shoot days</h2>
+            </div>
+            {extras.days.length === 0 ? (
+              <p className="muted-text">No shoot days planned. Add one on a project's Schedule tab.</p>
+            ) : (
+              <div className="list">
+                {extras.days.map((d) => (
+                  <button key={d.id} className="list-row" onClick={() => nav(`/project/${d.project_id}/callsheets?day=${d.id}`)}>
+                    <span className="lr-title">
+                      {fmtDate(d.date)}
+                      <span className="meta-text lr-sub">
+                        {titleOf(d.project_id)}, {d.label}
+                      </span>
+                    </span>
+                    <span className="lr-meta">
+                      <span>{fmtTime(d.call_time)}</span>
+                      <span>{whenText(d.date)}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+          <section>
+            <div className="section-head">
+              <h2>Tasks to do</h2>
+            </div>
+            {extras.tasks.length === 0 ? (
+              <p className="muted-text">You are all caught up.</p>
+            ) : (
+              <div className="list">
+                {extras.tasks.map((t) => (
+                  <button key={t.id} className="list-row" onClick={() => nav(`/project/${t.project_id}/tasks`)}>
+                    <span className="lr-title">
+                      {t.name}
+                      <span className="meta-text lr-sub">{titleOf(t.project_id)}</span>
+                    </span>
+                    <span className="lr-meta">
+                      {t.due_date && <span className={daysUntil(t.due_date) < 0 ? 'overdue-note' : ''}>{fmtDateShort(t.due_date)}</span>}
+                      <span>{t.priority}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       )}
 
       {scripts.length > 0 && (

@@ -17,6 +17,11 @@ import CharactersPage from './pages/CharactersPage.jsx'
 import LocationsPage from './pages/LocationsPage.jsx'
 import StoryboardPage from './pages/StoryboardPage.jsx'
 import ShotListPage from './pages/ShotListPage.jsx'
+import SchedulePage from './pages/SchedulePage.jsx'
+import CrewPage from './pages/CrewPage.jsx'
+import EquipmentPage from './pages/EquipmentPage.jsx'
+import CallSheetPage from './pages/CallSheetPage.jsx'
+import TasksPage from './pages/TasksPage.jsx'
 
 function FullMessage({ title, children }) {
   return (
@@ -98,6 +103,11 @@ export default function App() {
             <Route path="locations" element={<LocationsPage />} />
             <Route path="storyboard" element={<StoryboardPage />} />
             <Route path="shots" element={<ShotListPage />} />
+            <Route path="schedule" element={<SchedulePage />} />
+            <Route path="crew" element={<CrewPage />} />
+            <Route path="equipment" element={<EquipmentPage />} />
+            <Route path="callsheets" element={<CallSheetPage />} />
+            <Route path="tasks" element={<TasksPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

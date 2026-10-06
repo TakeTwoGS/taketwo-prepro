@@ -64,7 +64,7 @@ export function useRows({ table, projectId, initial, track }) {
 
   const addMany = useCallback(
     async (partials) => {
-      const created = partials.map((p) => ({ id: uuid(), project_id: projectId, ...p }))
+      const created = partials.map((p) => ({ id: uuid(), ...(projectId ? { project_id: projectId } : {}), ...p }))
       if (!created.length) return []
       set([...ref.current, ...created])
       try {
