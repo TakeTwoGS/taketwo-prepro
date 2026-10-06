@@ -1,4 +1,5 @@
 :root {
+  --gutter: clamp(20px, 3.4vw, 56px);
   --bg: #0c0a10;
   --bg-2: #110e16;
   --panel: #16121c;
@@ -129,7 +130,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 22px;
-  padding: 0 20px;
+  padding: 0 var(--gutter);
   height: 62px;
   flex: none;
   background: rgba(12, 10, 16, 0.78);
@@ -454,12 +455,12 @@ button:disabled {
 
 /* ---------- pages ---------- */
 .page {
-  max-width: 1100px;
+  max-width: 1760px;
   margin: 0 auto;
-  padding: 32px 28px 80px;
+  padding: 32px var(--gutter) 80px;
 }
 .page.wide {
-  max-width: 1320px;
+  max-width: 1760px;
 }
 .page-head {
   display: flex;
@@ -903,7 +904,7 @@ section + section {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 10px 20px 0;
+  padding: 10px var(--gutter) 0;
   flex: none;
 }
 .crumbs {
@@ -947,7 +948,7 @@ section + section {
 .tabs {
   display: flex;
   gap: 4px;
-  padding: 6px 20px 0;
+  padding: 6px var(--gutter) 0;
   border-bottom: 1px solid var(--border-soft);
   flex: none;
   overflow-x: auto;
@@ -1859,9 +1860,9 @@ section + section {
 
 /* ---------- landing page ---------- */
 .landing {
-  max-width: 1160px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 0 28px 56px;
+  padding: 0 var(--gutter) 56px;
 }
 .land-head {
   display: flex;
@@ -2307,7 +2308,7 @@ section + section {
     text-align: center;
   }
   .pr-tp-main {
-    margin: auto 0;
+    margin: auto 0.25in auto -0.25in;
     padding-bottom: 1.2in;
   }
   .pr-tp-title {
