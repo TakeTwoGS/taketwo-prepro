@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-export function Modal({ title, onClose, children, wide }) {
+export function Modal({ title, onClose, children, wide, xl }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose?.()
     window.addEventListener('keydown', onKey)
@@ -15,7 +15,7 @@ export function Modal({ title, onClose, children, wide }) {
         if (e.target === e.currentTarget) onClose?.()
       }}
     >
-      <div className={'modal' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={'modal' + (wide ? ' wide' : '') + (xl ? ' xl' : '')} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close">

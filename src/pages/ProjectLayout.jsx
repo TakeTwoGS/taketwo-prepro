@@ -5,6 +5,9 @@ import { analyze, newBlock } from '../lib/screenplay.js'
 import ProjectMenu from '../components/ProjectMenu.jsx'
 import ExportModal from '../components/ExportModal.jsx'
 import { useToast } from '../components/Toast.jsx'
+import { useAuth } from '../lib/auth.jsx'
+import { useRows } from '../lib/rows.js'
+import { shotLabels, sortShots } from '../lib/shots.js'
 
 export const useProject = () => useOutletContext()
 
@@ -16,9 +19,13 @@ export default function ProjectLayout() {
     let cancelled = false
     setState({ status: 'loading' })
     ;(async () => {
-      const [p, s] = await Promise.all([
+      const [p, s, shotsRes, charsRes, locsRes, tagsRes] = await Promise.all([
         supabase.from('projects').select('*').eq('id', projectId).maybeSingle(),
         supabase.from('scripts').select('*').eq('project_id', projectId).maybeSingle(),
+        supabase.from('shots').select('*').eq('project_id', projectId),
+        supabase.from('characters').select('*').eq('project_id', projectId),
+        supabase.from('locations').select('*').eq('project_id', projectId),
+        supabase.from('breakdown_items').select('*').eq('project_id', projectId),
       ])
       if (cancelled) return
       if (p.error) return setState({ status: 'error', message: p.error.message })
@@ -37,7 +44,19 @@ export default function ProjectLayout() {
         script = data
       }
       const blocks = Array.isArray(script.content) && script.content.length ? script.content : [newBlock('scene', '')]
-      setState({ status: 'ready', project: p.data, blocks, sceneInfo: script.scene_info || {} })
+      // If the newer tables are not set up yet, the script side still works.
+      const extrasError = [shotsRes, charsRes, locsRes, tagsRes].find((r) => r.error)?.error?.message || ''
+      setState({
+        status: 'ready',
+        project: p.data,
+        blocks,
+        sceneInfo: script.scene_info || {},
+        shots: shotsRes.data || [],
+        characters: charsRes.data || [],
+        locations: locsRes.data || [],
+        tags: tagsRes.data || [],
+        extrasError,
+      })
     })()
     return () => {
       cancelled = true
@@ -92,6 +111,34 @@ export function Workspace({ initial }) {
   const dirty = useRef(false)
   const failed = useRef(false)
 
+  // ----- storyboard, shot list, characters, locations, breakdown -----
+  const { user } = useAuth()
+  const [busy, setBusy] = useState(0)
+  const [dbError, setDbError] = useState(false)
+  const dbErrRef = useRef(false)
+  const track = useCallback(async (fn) => {
+    setBusy((n) => n + 1)
+    try {
+      const r = await fn()
+      dbErrRef.current = false
+      setDbError(false)
+      return r
+    } catch (e) {
+      dbErrRef.current = true
+      setDbError(true)
+      throw e
+    } finally {
+      setBusy((n) => n - 1)
+    }
+  }, [])
+  const shotsHook = useRows({ table: 'shots', projectId, initial: initial.shots || [], track })
+  const characters = useRows({ table: 'characters', projectId, initial: initial.characters || [], track })
+  const locations = useRows({ table: 'locations', projectId, initial: initial.locations || [], track })
+  const tags = useRows({ table: 'breakdown_items', projectId, initial: initial.tags || [], track })
+  const rowsDirty = shotsHook.dirty || characters.dirty || locations.dirty || tags.dirty
+  const rowsDirtyRef = useRef(false)
+  rowsDirtyRef.current = rowsDirty
+
   // ----- saving -----
   const flushSave = useCallback(async () => {
     clearTimeout(timer.current)
@@ -130,7 +177,7 @@ export function Workspace({ initial }) {
       if (document.visibilityState === 'hidden') flushSave()
     }
     const onUnload = (e) => {
-      if (dirty.current) {
+      if (dirty.current || rowsDirtyRef.current) {
         e.preventDefault()
         e.returnValue = ''
       }
@@ -147,11 +194,27 @@ export function Workspace({ initial }) {
   // The Save button and Ctrl+S: save right now and tell the person it worked
   const saveNow = useCallback(async () => {
     for (let i = 0; i < 50 && saving.current; i++) await new Promise((r) => setTimeout(r, 100))
-    await flushSave()
+    await Promise.all([flushSave(), shotsHook.flush(), characters.flush(), locations.flush(), tags.flush()])
     for (let i = 0; i < 50 && saving.current; i++) await new Promise((r) => setTimeout(r, 100))
-    if (failed.current) toast('Could not save. Check your connection and try again.', 'error')
-    else toast('Script saved')
-  }, [flushSave, toast])
+    if (failed.current || dbErrRef.current) toast('Could not save. Check your connection and try again.', 'error')
+    else toast('Everything saved')
+  }, [flushSave, toast, shotsHook.flush, characters.flush, locations.flush, tags.flush])
+
+  const setBoardRatio = useCallback(
+    (value) => {
+      setProject((p) => ({ ...p, board_ratio: value }))
+      track(() =>
+        supabase
+          .from('projects')
+          .update({ board_ratio: value })
+          .eq('id', projectId)
+          .then((r) => {
+            if (r.error) throw r.error
+          })
+      ).catch(() => {})
+    },
+    [projectId, track]
+  )
 
   // ----- editing with undo / redo -----
   const commit = useCallback(
@@ -205,7 +268,21 @@ export function Workspace({ initial }) {
   const deferred = useDeferredValue(blocks)
   const analysis = useMemo(() => analyze(deferred), [deferred])
 
+  const sortedShots = useMemo(() => sortShots(shotsHook.rows), [shotsHook.rows])
+  const labels = useMemo(() => shotLabels(sortedShots, analysis.scenes), [sortedShots, analysis.scenes])
+  const effectiveState =
+    saveState === 'error' || dbError ? 'error' : saveState === 'saving' || busy > 0 ? 'saving' : saveState === 'dirty' || rowsDirty ? 'dirty' : 'saved'
+
   const ctx = {
+    userId: user?.id,
+    extrasError: initial.extrasError,
+    shots: { ...shotsHook, rows: sortedShots },
+    shotLabels: labels,
+    characters,
+    locations,
+    tags,
+    boardRatio: project.board_ratio || '16:9',
+    setBoardRatio,
     project,
     blocks,
     blocksRef,
@@ -218,7 +295,7 @@ export function Workspace({ initial }) {
     updateSceneInfo,
     analysis,
     saveNow,
-    saveState,
+    saveState: effectiveState,
     openExport: () => setExportOpen(true),
   }
 
@@ -234,7 +311,7 @@ export function Workspace({ initial }) {
           {project.status === 'archived' && <span className="badge muted">Archived</span>}
         </div>
         <div className="project-head-right">
-          <SaveChip state={saveState} onRetry={flushSave} />
+          <SaveChip state={effectiveState} onRetry={saveNow} />
           <ProjectMenu
             project={project}
             beforeDuplicate={flushSave}
@@ -252,6 +329,11 @@ export function Workspace({ initial }) {
         </NavLink>
         <NavLink to={`${base}/script`}>Script</NavLink>
         <NavLink to={`${base}/scenes`}>Scenes</NavLink>
+        <NavLink to={`${base}/breakdown`}>Breakdown</NavLink>
+        <NavLink to={`${base}/characters`}>Characters</NavLink>
+        <NavLink to={`${base}/locations`}>Locations</NavLink>
+        <NavLink to={`${base}/storyboard`}>Storyboard</NavLink>
+        <NavLink to={`${base}/shots`}>Shot list</NavLink>
       </nav>
       <div className="project-body">
         <Outlet context={ctx} />

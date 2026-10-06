@@ -1,34 +1,29 @@
 # TakeTwo PrePro: setup guide
 
-People log in with Google. Setup has two sides: Google and Supabase.
+## Updating to Zip 2 (storyboards, shot lists, breakdown, characters, locations)
 
-## 1. Database (Supabase)
-1. Create a Supabase project named taketwo-prepro.
-2. SQL Editor, New query, paste everything from `supabase-setup.sql`, Run.
-3. Project Settings, API Keys: copy the Publishable key (sb_publishable_...).
-   Project Settings, Data API: copy the Project URL (https://xxxx.supabase.co).
+1. Supabase, SQL Editor, New query. Paste ALL of `supabase-setup.sql` and click Run.
+   It is safe to run again. It adds the new tables and a private "project-images" storage bucket.
+   If Supabase complains about the storage part, create the bucket by hand instead:
+   Storage, New bucket, name it `project-images`, leave "Public bucket" OFF, then run the SQL again.
+2. Upload this project's files to GitHub (replace the old ones). Vercel redeploys on its own.
 
-## 2. GitHub and Vercel
-1. Upload this project's files to a GitHub repository named taketwo-prepro.
-2. Vercel: Add New, Project, import it. Before Deploy, add two Environment Variables, both with Type = Config:
+## First-time setup
+
+### Database (Supabase)
+1. Create a Supabase project. SQL Editor, New query, paste everything from `supabase-setup.sql`, Run.
+2. Project Settings, API Keys: copy the Publishable key. Project Settings, Data API: copy the Project URL.
+
+### GitHub and Vercel
+1. Upload this project's files to a GitHub repository.
+2. Vercel: Add New, Project, import it. Before Deploy, add two Environment Variables (Type = Config):
    - VITE_SUPABASE_URL = the Project URL
    - VITE_SUPABASE_ANON_KEY = the Publishable key
 3. Deploy.
 
-## 3. Google login
-### Google Cloud
-1. Go to console.cloud.google.com and create a project named TakeTwo PrePro.
-2. Open the menu, then APIs & Services, then OAuth consent screen (it may be called Google Auth Platform).
-   Fill in the app name, your email, choose External, and finish.
-3. Publish the app (Audience, then Publish app) so anyone can log in, not only test users.
-4. Credentials, Create credentials, OAuth client ID, Application type: Web application.
-   - Authorized JavaScript origins: your live address, e.g. https://taketwo-prepro.vercel.app
-   - Authorized redirect URIs: the callback URL shown in Supabase (Authentication, Sign In / Providers, Google).
-     It looks like https://YOURPROJECT.supabase.co/auth/v1/callback
-5. Create, then copy the Client ID and Client Secret.
-
-### Supabase
-1. Authentication, Sign In / Providers, Google: turn it on, paste the Client ID and Client Secret, Save.
-2. Authentication, URL Configuration:
-   - Site URL = your live address
-   - Redirect URLs = add your live address followed by /**
+### Google login
+1. Google Cloud: create a project, set up the OAuth consent screen (Branding + Audience), then create an OAuth client
+   (Web application). Authorized JavaScript origin = your live address. Authorized redirect URI = the callback URL
+   shown in Supabase (Authentication, Sign In / Providers, Google).
+2. Supabase: Authentication, Sign In / Providers, Google: turn on, paste the Client ID and Secret, Save.
+3. Supabase: Authentication, URL Configuration: Site URL = your live address; Redirect URLs = your address followed by /**

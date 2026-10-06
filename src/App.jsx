@@ -12,6 +12,11 @@ import ProjectLayout from './pages/ProjectLayout.jsx'
 import Overview from './pages/Overview.jsx'
 import ScriptPage from './pages/ScriptPage.jsx'
 import ScenesPage from './pages/ScenesPage.jsx'
+import BreakdownPage from './pages/BreakdownPage.jsx'
+import CharactersPage from './pages/CharactersPage.jsx'
+import LocationsPage from './pages/LocationsPage.jsx'
+import StoryboardPage from './pages/StoryboardPage.jsx'
+import ShotListPage from './pages/ShotListPage.jsx'
 
 function FullMessage({ title, children }) {
   return (
@@ -88,6 +93,11 @@ export default function App() {
             <Route index element={<Overview />} />
             <Route path="script" element={<ScriptPage />} />
             <Route path="scenes" element={<ScenesPage />} />
+            <Route path="breakdown" element={<BreakdownPage />} />
+            <Route path="characters" element={<CharactersPage />} />
+            <Route path="locations" element={<LocationsPage />} />
+            <Route path="storyboard" element={<StoryboardPage />} />
+            <Route path="shots" element={<ShotListPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,8 +1,11 @@
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clapperboard, Clock, FileText, MapPin, Moon, Printer, Sun, Users } from 'lucide-react'
+import { Clapperboard, Clock, FileText, MapPin, Moon, Printer, Rocket, Sun, Users } from 'lucide-react'
 import { useProject } from './ProjectLayout.jsx'
 import Hint from '../components/Hint.jsx'
+import StartPreProModal from '../components/StartPreProModal.jsx'
 import { fmtPages } from '../lib/screenplay.js'
+import { planPrePro } from '../lib/people.js'
 
 function Stat({ label, value, note, hint, icon: Icon, tone }) {
   return (
@@ -33,10 +36,18 @@ function Bar({ label, value, total, tone = 'violet' }) {
 }
 
 export default function Overview() {
-  const { project, analysis, blocks, openExport } = useProject()
+  const { project, analysis, blocks, openExport, shots, characters: charsApi, locations: locsApi, tags } = useProject()
+  const [starting, setStarting] = useState(false)
   const { stats, scenes, locations, characters } = analysis
   const hasText = blocks.some((b) => (b.text || '').trim())
   const base = `/project/${project.id}`
+  const plan = useMemo(() => planPrePro(analysis, charsApi.rows, locsApi.rows, shots.rows), [analysis, charsApi.rows, locsApi.rows, shots.rows])
+  const toCreate = plan.newCharacters.length + plan.newLocations.length + plan.scenesWithoutShots.length
+  const frames = shots.rows.filter((s) => s.on_board).length
+  const listed = shots.rows.filter((s) => s.in_list)
+  const done = listed.filter((s) => s.status === 'Completed').length
+  const charsAdded = analysis.characters.length - plan.newCharacters.length
+  const locsAdded = analysis.locations.length - plan.newLocations.length
 
   return (
     <div className="page">
@@ -74,6 +85,46 @@ export default function Overview() {
         </div>
       ) : (
         <>
+          <section className="card pad prepro">
+            <div className="prepro-head">
+              <div>
+                <h2 className="card-title">Pre-production</h2>
+                <p className="muted-text">
+                  {toCreate > 0
+                    ? 'Turn your script into a starting point: characters, locations, and a first shot for every scene. Nothing you already made is changed.'
+                    : 'Your characters, locations, and scenes all have a starting point. Keep building from the tabs above.'}
+                </p>
+              </div>
+              {toCreate > 0 && (
+                <button className="btn btn-primary" onClick={() => setStarting(true)}>
+                  <Rocket size={16} /> Start pre-production
+                </button>
+              )}
+            </div>
+            <ul className="prepro-list">
+              <li>
+                <Link to={`${base}/breakdown`}>Script breakdown</Link>
+                <span>{tags.rows.length} {tags.rows.length === 1 ? 'item' : 'items'} tagged</span>
+              </li>
+              <li>
+                <Link to={`${base}/characters`}>Characters</Link>
+                <span>{charsAdded} of {analysis.characters.length} in the database</span>
+              </li>
+              <li>
+                <Link to={`${base}/locations`}>Locations</Link>
+                <span>{locsAdded} of {analysis.locations.length} in the database</span>
+              </li>
+              <li>
+                <Link to={`${base}/storyboard`}>Storyboard</Link>
+                <span>{frames} {frames === 1 ? 'frame' : 'frames'}</span>
+              </li>
+              <li>
+                <Link to={`${base}/shots`}>Shot list</Link>
+                <span>{done} of {listed.length} shots completed</span>
+              </li>
+            </ul>
+          </section>
+
           <div className="stat-grid">
             <Stat
               icon={FileText}
@@ -157,6 +208,7 @@ export default function Overview() {
           </div>
         </>
       )}
+      {starting && <StartPreProModal plan={plan} onClose={() => setStarting(false)} />}
     </div>
   )
 }

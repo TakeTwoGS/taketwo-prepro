@@ -1,8 +1,11 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { BarChart3, Check, HelpCircle, ListTree, Printer, Redo2, Save, Undo2, X } from 'lucide-react'
 import { useProject } from './ProjectLayout.jsx'
 import Hint from '../components/Hint.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { newCharacter, namesOf } from '../lib/people.js'
+import { titleCase } from '../lib/breakdown.js'
 import { useAuth } from '../lib/auth.jsx'
 import {
   AUTO_SCENE_RE,
@@ -14,6 +17,7 @@ import {
   TYPE_SHORT,
   UPPER_TYPES,
   convertText,
+  cleanName,
   cycleType,
   fmtPages,
   isEmptyText,
@@ -92,7 +96,8 @@ const Block = memo(function Block({ block, active, tick, register, onChange, onK
 // ---------- the page ----------
 
 export default function ScriptPage() {
-  const { blocks, blocksRef, commit, undo, redo, canUndo, canRedo, analysis, saveNow, saveState, openExport } = useProject()
+  const { blocks, blocksRef, commit, undo, redo, canUndo, canRedo, analysis, saveNow, saveState, openExport, project, characters: charsApi } = useProject()
+  const toast = useToast()
   const { beginner } = useAuth()
   const [params] = useSearchParams()
 
@@ -349,6 +354,19 @@ export default function ScriptPage() {
     ? characters.filter((n) => n.startsWith((active.text || '').trim().toUpperCase()) && n !== (active.text || '').trim().toUpperCase()).slice(0, 8)
     : []
 
+  // The character on the current line: already in the database, or can be added
+  const lineName = active?.type === 'character' ? cleanName(active.text) : ''
+  const lineRecord = lineName ? charsApi.rows.find((r) => namesOf(r).includes(lineName)) : null
+
+  async function addLineCharacter() {
+    try {
+      await charsApi.add(newCharacter(titleCase(lineName)))
+      toast(`${titleCase(lineName)} added to your characters`)
+    } catch (e) {
+      toast(e.message || 'Could not add that character.', 'error')
+    }
+  }
+
   function fillName(name) {
     if (!active) return
     apply(
@@ -503,6 +521,19 @@ export default function ScriptPage() {
               {active
                 ? TYPE_HINT[active.type]
                 : 'Click a line and start typing. Press Enter for the next line and Tab to change what kind of line it is.'}
+            </div>
+          )}
+          {lineName && (
+            <div className="name-bar">
+              {lineRecord ? (
+                <Link className="text-link" to={`/project/${project.id}/characters?name=${encodeURIComponent(lineName)}`}>
+                  View {lineRecord.name}'s details
+                </Link>
+              ) : (
+                <button className="btn btn-ghost btn-sm" onMouseDown={(e) => e.preventDefault()} onClick={addLineCharacter}>
+                  Add {titleCase(lineName)} to your characters
+                </button>
+              )}
             </div>
           )}
           {nameChoices.length > 0 && (
