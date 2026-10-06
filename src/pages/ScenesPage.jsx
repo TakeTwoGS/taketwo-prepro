@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowDown, ArrowUp, GripVertical } from 'lucide-react'
+import { ArrowDown, ArrowUp, GripVertical, Moon, Sun } from 'lucide-react'
 import { useProject } from './ProjectLayout.jsx'
 import Hint from '../components/Hint.jsx'
 import { fmtPages, reorderScenes } from '../lib/screenplay.js'
@@ -100,8 +100,14 @@ export default function ScenesPage() {
                 <span className="scene-body">
                   <span className="scene-heading">{s.heading || 'Untitled scene'}</span>
                   <span className="scene-meta">
-                    {s.intExt && <span className="chip small">{s.intExt}</span>}
-                    {s.time && <span className="chip small">{s.time}</span>}
+                    {s.intExt && <span className={'chip small ' + (s.intExt === 'EXT' ? 'tone-pink' : 'tone-violet')}>{s.intExt}</span>}
+                    {s.time && (
+                      <span className={'chip small ' + (s.tod === 'night' ? 'tone-blue' : s.tod === 'day' ? 'tone-amber' : '')}>
+                        {s.tod === 'night' && <Moon size={11} />}
+                        {s.tod === 'day' && <Sun size={11} />}
+                        {s.time}
+                      </span>
+                    )}
                     <span className="meta-text">{fmtPages(s.pages)} pages</span>
                     {s.characters.length > 0 && <span className="meta-text">{s.characters.join(', ')}</span>}
                   </span>

@@ -1,5 +1,7 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
+import { FileText, FolderKanban, House } from 'lucide-react'
 import Menu from './Menu.jsx'
+import Logo from './Logo.jsx'
 import { useAuth } from '../lib/auth.jsx'
 
 export default function Layout() {
@@ -10,16 +12,17 @@ export default function Layout() {
   return (
     <div className="app">
       <header className="topbar">
-        <Link to="/home" className="brand">
-          <span className="brand-dot" aria-hidden="true" />
-          TakeTwo PrePro
-        </Link>
+        <Logo to="/home" />
         <nav className="main-nav" aria-label="Main">
           <NavLink to="/home" end>
-            Home
+            <House size={16} /> <span>Home</span>
           </NavLink>
-          <NavLink to="/projects">Projects</NavLink>
-          <NavLink to="/scripts">Scripts</NavLink>
+          <NavLink to="/projects">
+            <FolderKanban size={16} /> <span>Projects</span>
+          </NavLink>
+          <NavLink to="/scripts">
+            <FileText size={16} /> <span>Scripts</span>
+          </NavLink>
         </nav>
         <div className="topbar-right">
           <label className="switch" title="Adds a (?) next to filmmaking terms and explains what each script element is for.">
@@ -30,9 +33,16 @@ export default function Layout() {
           <Menu
             label="Account"
             className="account-menu"
-            items={[{ heading: user?.email }, { divider: true }, { label: 'Sign out', onClick: signOut }]}
+            items={[
+              { heading: user?.user_metadata?.full_name || user?.email },
+              user?.user_metadata?.full_name && { heading: user?.email },
+              { divider: true },
+              { label: 'Sign out', onClick: signOut },
+            ]}
           >
-            <span className="avatar">{picture ? <img src={picture} alt="" referrerPolicy="no-referrer" /> : initial}</span>
+            <span className="avatar">
+              {picture ? <img src={picture} alt="" referrerPolicy="no-referrer" /> : initial}
+            </span>
           </Menu>
         </div>
       </header>

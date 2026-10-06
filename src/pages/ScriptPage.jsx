@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { HelpCircle, ListTree, Redo2, Undo2, BarChart3, X } from 'lucide-react'
+import { BarChart3, Check, HelpCircle, ListTree, Printer, Redo2, Save, Undo2, X } from 'lucide-react'
 import { useProject } from './ProjectLayout.jsx'
 import Hint from '../components/Hint.jsx'
 import { useAuth } from '../lib/auth.jsx'
@@ -92,7 +92,7 @@ const Block = memo(function Block({ block, active, tick, register, onChange, onK
 // ---------- the page ----------
 
 export default function ScriptPage() {
-  const { blocks, blocksRef, commit, undo, redo, canUndo, canRedo, analysis, saveNow } = useProject()
+  const { blocks, blocksRef, commit, undo, redo, canUndo, canRedo, analysis, saveNow, saveState, openExport } = useProject()
   const { beginner } = useAuth()
   const [params] = useSearchParams()
 
@@ -428,7 +428,7 @@ export default function ScriptPage() {
                 </button>
               ))}
             </div>
-            <div className="tb-spacer" />
+            <div className="tb-actions">
             <button className="icon-btn" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
               <Undo2 size={17} />
             </button>
@@ -483,6 +483,19 @@ export default function ScriptPage() {
                   </button>
                 </div>
               )}
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={openExport} title="Print or save as PDF">
+              <Printer size={16} /> <span className="btn-label">Export</span>
+            </button>
+            <button
+              className={'btn btn-sm ' + (saveState === 'saved' ? 'btn-ghost saved' : 'btn-primary')}
+              onClick={saveNow}
+              disabled={saveState === 'saving'}
+              title="Save your script (Ctrl+S)"
+            >
+              {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+              <span>{saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save'}</span>
+            </button>
             </div>
           </div>
           {beginner && (

@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useNavigate, useOutletContext, useParams } from 
 import { supabase } from '../lib/supabase.js'
 import { analyze, newBlock } from '../lib/screenplay.js'
 import ProjectMenu from '../components/ProjectMenu.jsx'
+import ExportModal from '../components/ExportModal.jsx'
+import { useToast } from '../components/Toast.jsx'
 
 export const useProject = () => useOutletContext()
 
@@ -72,6 +74,8 @@ export default function ProjectLayout() {
 
 export function Workspace({ initial }) {
   const nav = useNavigate()
+  const toast = useToast()
+  const [exportOpen, setExportOpen] = useState(false)
   const projectId = initial.project.id
   const [project, setProject] = useState(initial.project)
   const [blocks, setBlocks] = useState(initial.blocks)
@@ -86,6 +90,7 @@ export function Workspace({ initial }) {
   const timer = useRef(null)
   const saving = useRef(false)
   const dirty = useRef(false)
+  const failed = useRef(false)
 
   // ----- saving -----
   const flushSave = useCallback(async () => {
@@ -100,6 +105,7 @@ export function Workspace({ initial }) {
       .update({ content: snapBlocks, scene_info: snapInfo, stats: analyze(snapBlocks).stats })
       .eq('project_id', projectId)
     saving.current = false
+    failed.current = Boolean(error)
     if (error) {
       setSaveState('error')
       return
@@ -137,6 +143,15 @@ export function Workspace({ initial }) {
       flushSave() // leaving the project: save anything pending
     }
   }, [flushSave])
+
+  // The Save button and Ctrl+S: save right now and tell the person it worked
+  const saveNow = useCallback(async () => {
+    for (let i = 0; i < 50 && saving.current; i++) await new Promise((r) => setTimeout(r, 100))
+    await flushSave()
+    for (let i = 0; i < 50 && saving.current; i++) await new Promise((r) => setTimeout(r, 100))
+    if (failed.current) toast('Could not save. Check your connection and try again.', 'error')
+    else toast('Script saved')
+  }, [flushSave, toast])
 
   // ----- editing with undo / redo -----
   const commit = useCallback(
@@ -202,8 +217,9 @@ export function Workspace({ initial }) {
     sceneInfo,
     updateSceneInfo,
     analysis,
-    saveNow: flushSave,
+    saveNow,
     saveState,
+    openExport: () => setExportOpen(true),
   }
 
   const base = `/project/${projectId}`
@@ -240,6 +256,7 @@ export function Workspace({ initial }) {
       <div className="project-body">
         <Outlet context={ctx} />
       </div>
+      {exportOpen && <ExportModal project={project} blocks={blocks} onClose={() => setExportOpen(false)} />}
     </div>
   )
 }

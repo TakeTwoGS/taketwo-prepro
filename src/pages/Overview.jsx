@@ -1,11 +1,15 @@
 import { Link } from 'react-router-dom'
+import { Clapperboard, Clock, FileText, MapPin, Moon, Printer, Sun, Users } from 'lucide-react'
 import { useProject } from './ProjectLayout.jsx'
 import Hint from '../components/Hint.jsx'
 import { fmtPages } from '../lib/screenplay.js'
 
-function Stat({ label, value, note, hint }) {
+function Stat({ label, value, note, hint, icon: Icon, tone }) {
   return (
-    <div className="card stat">
+    <div className={'card stat tone-' + tone}>
+      <span className="tile">
+        <Icon size={18} />
+      </span>
       <div className="stat-value">{value}</div>
       <div className="stat-label">
         {label} {hint && <Hint text={hint} />}
@@ -15,10 +19,10 @@ function Stat({ label, value, note, hint }) {
   )
 }
 
-function Bar({ label, value, total }) {
+function Bar({ label, value, total, tone = 'violet' }) {
   const pct = total ? Math.round((value / total) * 100) : 0
   return (
-    <div className="bar-row">
+    <div className={'bar-row tone-' + tone}>
       <span className="bar-label">{label}</span>
       <span className="bar-track" aria-hidden="true">
         <span className="bar-fill" style={{ width: pct + '%' }} />
@@ -29,7 +33,7 @@ function Bar({ label, value, total }) {
 }
 
 export default function Overview() {
-  const { project, analysis, blocks } = useProject()
+  const { project, analysis, blocks, openExport } = useProject()
   const { stats, scenes, locations, characters } = analysis
   const hasText = blocks.some((b) => (b.text || '').trim())
   const base = `/project/${project.id}`
@@ -41,9 +45,16 @@ export default function Overview() {
           <h1>{project.title}</h1>
           <p className="muted-text">Your script at a glance.</p>
         </div>
-        <Link className="btn btn-primary" to={`${base}/script`}>
-          {hasText ? 'Continue writing' : 'Start writing'}
-        </Link>
+        <div className="head-actions">
+          {hasText && (
+            <button className="btn btn-ghost" onClick={openExport}>
+              <Printer size={16} /> Export script
+            </button>
+          )}
+          <Link className="btn btn-primary" to={`${base}/script`}>
+            {hasText ? 'Continue writing' : 'Start writing'}
+          </Link>
+        </div>
       </div>
 
       {project.is_demo && (
@@ -65,31 +76,35 @@ export default function Overview() {
         <>
           <div className="stat-grid">
             <Stat
+              icon={FileText}
+              tone="pink"
               label="Pages"
               value={fmtPages(stats.pages)}
               hint="A screenplay page is a fixed size, so page count is a handy way to measure length."
             />
             <Stat
+              icon={Clock}
+              tone="violet"
               label="Estimated runtime"
               value={`${stats.runtime} min`}
               note="About one page per minute. This is only an estimate."
               hint="Screenplays run roughly one page per minute on screen. Action scenes and quiet scenes can run faster or slower."
             />
-            <Stat label="Scenes" value={stats.scenes} />
-            <Stat label="Locations" value={stats.locations} />
-            <Stat label="Speaking characters" value={stats.characters} />
+            <Stat icon={Clapperboard} tone="amber" label="Scenes" value={stats.scenes} />
+            <Stat icon={MapPin} tone="teal" label="Locations" value={stats.locations} />
+            <Stat icon={Users} tone="blue" label="Speaking characters" value={stats.characters} />
           </div>
 
           <div className="two-col">
             <section className="card pad">
               <h2 className="card-title">Scene breakdown</h2>
-              <Bar label="Interior" value={stats.interior} total={stats.scenes} />
-              <Bar label="Exterior" value={stats.exterior} total={stats.scenes} />
-              {stats.intExt > 0 && <Bar label="Interior and exterior" value={stats.intExt} total={stats.scenes} />}
+              <Bar label="Interior" value={stats.interior} total={stats.scenes} tone="violet" />
+              <Bar label="Exterior" value={stats.exterior} total={stats.scenes} tone="pink" />
+              {stats.intExt > 0 && <Bar label="Interior and exterior" value={stats.intExt} total={stats.scenes} tone="teal" />}
               <div className="bar-gap" />
-              <Bar label="Day" value={stats.day} total={stats.scenes} />
-              <Bar label="Night" value={stats.night} total={stats.scenes} />
-              {stats.otherTime > 0 && <Bar label="Other or not set" value={stats.otherTime} total={stats.scenes} />}
+              <Bar label="Day" value={stats.day} total={stats.scenes} tone="amber" />
+              <Bar label="Night" value={stats.night} total={stats.scenes} tone="blue" />
+              {stats.otherTime > 0 && <Bar label="Other or not set" value={stats.otherTime} total={stats.scenes} tone="rose" />}
             </section>
 
             <section className="card pad">

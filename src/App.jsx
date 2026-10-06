@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './lib/auth.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import Landing from './pages/Landing.jsx'
+import Logo from './components/Logo.jsx'
 import Home from './pages/Home.jsx'
 import Projects from './pages/Projects.jsx'
 import Scripts from './pages/Scripts.jsx'
@@ -16,7 +17,7 @@ function FullMessage({ title, children }) {
   return (
     <div className="center-screen">
       <div className="auth-card">
-        <div className="brand-mark">TakeTwo PrePro</div>
+        <div className="auth-logo"><Logo to={null} size="lg" /></div>
         {title && <h1 className="auth-title">{title}</h1>}
         {children}
       </div>

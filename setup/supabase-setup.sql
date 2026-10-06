@@ -37,6 +37,13 @@ create table if not exists public.scripts (
 
 create index if not exists projects_user_updated_idx on public.projects (user_id, updated_at desc);
 
+-- ---------- Permissions: let logged-in people use the tables ----------
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.projects to authenticated;
+grant select, insert, update, delete on public.scripts to authenticated;
+
 -- ---------- Privacy: every person only sees their own data ----------
 
 alter table public.profiles enable row level security;
