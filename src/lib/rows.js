@@ -13,7 +13,7 @@ export function uuid() {
 
 // A list of database rows that updates on screen instantly and saves in the background.
 // `track(fn)` lets the project page show "Saving..." for every kind of change.
-export function useRows({ table, projectId, initial, track }) {
+export function useRows({ table, projectId, initial, track, readOnly = false, onDenied, realtime = false }) {
   const [rows, setRows] = useState(initial)
   const ref = useRef(initial)
   const pending = useRef(new Map()) // id -> changes waiting to be saved
@@ -53,17 +53,22 @@ export function useRows({ table, projectId, initial, track }) {
 
   const update = useCallback(
     (id, patch) => {
+      if (readOnly) return onDenied?.()
       set(ref.current.map((r) => (r.id === id ? { ...r, ...patch } : r)))
       pending.current.set(id, { ...(pending.current.get(id) || {}), ...patch })
       setDirty(true)
       clearTimeout(timer.current)
       timer.current = setTimeout(flush, 900)
     },
-    [flush, set]
+    [flush, set, readOnly, onDenied]
   )
 
   const addMany = useCallback(
     async (partials) => {
+      if (readOnly) {
+        onDenied?.()
+        throw new Error('You have view-only access to this project.')
+      }
       const created = partials.map((p) => ({ id: uuid(), ...(projectId ? { project_id: projectId } : {}), ...p }))
       if (!created.length) return []
       set([...ref.current, ...created])
@@ -83,13 +88,17 @@ export function useRows({ table, projectId, initial, track }) {
       }
       return created
     },
-    [projectId, set, table, track]
+    [projectId, set, table, track, readOnly, onDenied]
   )
 
   const add = useCallback(async (partial) => (await addMany([partial]))[0], [addMany])
 
   const removeMany = useCallback(
     async (ids) => {
+      if (readOnly) {
+        onDenied?.()
+        throw new Error('You have view-only access to this project.')
+      }
       const gone = new Set(ids)
       const removed = ref.current.filter((r) => gone.has(r.id))
       if (!removed.length) return
@@ -110,12 +119,41 @@ export function useRows({ table, projectId, initial, track }) {
         throw e
       }
     },
-    [set, table, track]
+    [set, table, track, readOnly, onDenied]
   )
 
   const remove = useCallback((id) => removeMany([id]), [removeMany])
 
   useEffect(() => () => flush(), [flush]) // leaving the page: save what is waiting
+
+  // Changes other people make show up here as they happen
+  useEffect(() => {
+    if (!realtime || !projectId || !supabase.channel) return
+    const filter = `project_id=eq.${projectId}`
+    const upsert = (row) => {
+      if (!row || !row.id) return
+      const local = ref.current.find((r) => r.id === row.id)
+      const waiting = pending.current.get(row.id)
+      const merged = waiting ? { ...row, ...waiting } : row
+      if (local && JSON.stringify(local) === JSON.stringify(merged)) return // that was my own change coming back
+      set(local ? ref.current.map((r) => (r.id === row.id ? { ...r, ...merged } : r)) : [...ref.current, merged])
+    }
+    const channel = supabase
+      .channel(`rows:${table}:${projectId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter }, (p) => upsert(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table, filter }, (p) => upsert(p.new))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (p) => {
+        const id = p.old?.id
+        if (id && ref.current.some((r) => r.id === id)) {
+          pending.current.delete(id)
+          set(ref.current.filter((r) => r.id !== id))
+        }
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [realtime, projectId, table, set])
 
   return { rows, rowsRef: ref, add, addMany, update, remove, removeMany, flush, dirty }
 }

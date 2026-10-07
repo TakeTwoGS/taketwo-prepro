@@ -80,9 +80,10 @@ export async function removeProjectFiles(userId, projectId) {
   }
 }
 
-export async function copyImage(fromPath, newProjectId) {
+export async function copyImage(fromPath, newProjectId, ownerId) {
   const parts = fromPath.split('/')
-  const to = `${parts[0]}/${newProjectId}/${uid()}${uid()}.jpg`
+  // the copy goes in MY folder, even if the original was uploaded by a teammate
+  const to = `${ownerId || parts[0]}/${newProjectId}/${uid()}${uid()}.jpg`
   const { error } = await supabase.storage.from(BUCKET).copy(fromPath, to)
   if (error) return null
   return to

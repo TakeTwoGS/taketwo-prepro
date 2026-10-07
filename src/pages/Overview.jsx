@@ -100,6 +100,23 @@ export default function Overview() {
         </div>
       ) : (
         <>
+          <section className="card pad onset-cta">
+            <div>
+              <h2 className="card-title">Filming day</h2>
+              <p className="muted-text">
+                On-Set Mode walks you through your shots one at a time with big buttons, made for a phone or tablet. The digital slate keeps up with it.
+              </p>
+            </div>
+            <div className="head-actions">
+              <Link className="btn btn-primary btn-lg" to={`${base}/onset`}>
+                ENTER ON-SET MODE
+              </Link>
+              <Link className="btn btn-ghost btn-lg" to={`${base}/slate`}>
+                Digital slate
+              </Link>
+            </div>
+          </section>
+
           <section className="card pad prepro">
             <div className="prepro-head">
               <div>

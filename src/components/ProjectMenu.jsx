@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import Menu from './Menu.jsx'
 import { ConfirmModal, PromptModal } from './Modal.jsx'
 import { useToast } from './Toast.jsx'
-import { deleteProject, duplicateProject, renameProject, setProjectStatus } from '../lib/projects.js'
+import { deleteProject, duplicateProject, leaveProject, renameProject, setProjectStatus } from '../lib/projects.js'
 
-export default function ProjectMenu({ project, onChanged, afterDelete, beforeDuplicate, showOpen }) {
+export default function ProjectMenu({ project, onChanged, afterDelete, beforeDuplicate, showOpen, isOwner = true }) {
   const nav = useNavigate()
   const toast = useToast()
   const [modal, setModal] = useState(null)
@@ -36,14 +36,23 @@ export default function ProjectMenu({ project, onChanged, afterDelete, beforeDup
     <>
       <Menu
         label={`Options for ${project.title}`}
-        items={[
-          showOpen && { label: 'Open', onClick: () => nav(`/project/${project.id}`) },
-          { label: 'Rename', onClick: () => setModal('rename') },
-          { label: 'Duplicate', onClick: duplicate },
-          { label: archived ? 'Restore from archive' : 'Archive', onClick: toggleArchive },
-          { divider: true },
-          { label: 'Delete', danger: true, onClick: () => setModal('delete') },
-        ]}
+        items={
+          isOwner
+            ? [
+                showOpen && { label: 'Open', onClick: () => nav(`/project/${project.id}`) },
+                { label: 'Rename', onClick: () => setModal('rename') },
+                { label: 'Duplicate', onClick: duplicate },
+                { label: archived ? 'Restore from archive' : 'Archive', onClick: toggleArchive },
+                { divider: true },
+                { label: 'Delete', danger: true, onClick: () => setModal('delete') },
+              ]
+            : [
+                showOpen && { label: 'Open', onClick: () => nav(`/project/${project.id}`) },
+                { label: 'Make my own copy', onClick: duplicate },
+                { divider: true },
+                { label: 'Leave project', danger: true, onClick: () => setModal('leave') },
+              ]
+        }
       />
       {modal === 'rename' && (
         <PromptModal
@@ -58,6 +67,25 @@ export default function ProjectMenu({ project, onChanged, afterDelete, beforeDup
               onChanged?.(title)
             } catch (e) {
               toast(e.message || 'Could not rename the project.', 'error')
+            }
+          }}
+        />
+      )}
+      {modal === 'leave' && (
+        <ConfirmModal
+          title="Leave this project?"
+          danger
+          confirmLabel="Leave"
+          message="It disappears from your Home page. The owner can invite you again."
+          onClose={() => setModal(null)}
+          onConfirm={async () => {
+            try {
+              await leaveProject(project.id)
+              setModal(null)
+              toast('You left the project')
+              afterDelete ? afterDelete() : onChanged?.()
+            } catch (e) {
+              toast(e.message || 'Could not leave the project.', 'error')
             }
           }}
         />

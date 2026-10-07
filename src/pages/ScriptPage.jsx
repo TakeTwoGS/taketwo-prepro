@@ -1,8 +1,10 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { BarChart3, Check, HelpCircle, ListTree, Printer, Redo2, Save, Undo2, X } from 'lucide-react'
+import { BarChart3, Check, History, HelpCircle, ListTree, MessageSquare, Printer, Redo2, Save, Undo2, X } from 'lucide-react'
 import { useProject } from './ProjectLayout.jsx'
 import Hint from '../components/Hint.jsx'
+import CommentsPanel from '../components/CommentsPanel.jsx'
+import VersionsModal from '../components/VersionsModal.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { newCharacter, namesOf } from '../lib/people.js'
 import { titleCase } from '../lib/breakdown.js'
@@ -60,7 +62,7 @@ function caretLine(el) {
 
 // ---------- one line of the script ----------
 
-const Block = memo(function Block({ block, active, tick, register, onChange, onKeyDown, onFocus, onBlur, onPaste }) {
+const Block = memo(function Block({ block, active, tick, register, onChange, onKeyDown, onFocus, onBlur, onPaste, commentCount, readOnly, onComment }) {
   const ref = useRef(null)
 
   useLayoutEffect(() => {
@@ -88,7 +90,13 @@ const Block = memo(function Block({ block, active, tick, register, onChange, onK
         onFocus={() => onFocus(block.id)}
         onBlur={() => onBlur(block.id)}
         onPaste={(e) => onPaste(e, block.id)}
+        readOnly={readOnly}
       />
+      {commentCount > 0 && (
+        <button className="cm-dot" onClick={() => onComment(block.id)} aria-label={`${commentCount} ${commentCount === 1 ? 'comment' : 'comments'} on this line`}>
+          {commentCount}
+        </button>
+      )}
     </div>
   )
 })
@@ -96,7 +104,7 @@ const Block = memo(function Block({ block, active, tick, register, onChange, onK
 // ---------- the page ----------
 
 export default function ScriptPage() {
-  const { blocks, blocksRef, commit, undo, redo, canUndo, canRedo, analysis, saveNow, saveState, openExport, project, characters: charsApi } = useProject()
+  const { blocks, blocksRef, commit, undo, redo, canUndo, canRedo, analysis, saveNow, saveState, openExport, project, characters: charsApi, comments, team, canEdit, sceneInfo, restoreScript } = useProject()
   const toast = useToast()
   const { beginner } = useAuth()
   const [params] = useSearchParams()
@@ -104,6 +112,9 @@ export default function ScriptPage() {
   const [activeId, setActiveId] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
   const [popover, setPopover] = useState(null) // 'stats' | 'help' | null
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentFocus, setCommentFocus] = useState(null)
+  const [versionsOpen, setVersionsOpen] = useState(false)
   const [tick, setTick] = useState(0)
   const [dragFrom, setDragFrom] = useState(null)
   const [dragOver, setDragOver] = useState(null)
@@ -174,6 +185,7 @@ export default function ScriptPage() {
 
   const handleChange = useCallback(
     (id, text) => {
+      if (!canEdit) return
       const bl = blocksRef.current
       const b = bl.find((x) => x.id === id)
       if (!b) return
@@ -185,22 +197,24 @@ export default function ScriptPage() {
         'text:' + id
       )
     },
-    [apply, blocksRef]
+    [apply, blocksRef, canEdit]
   )
 
   const handleBlur = useCallback(
     (id) => {
+      if (!canEdit) return
       const bl = blocksRef.current
       const b = bl.find((x) => x.id === id)
       if (!b || !UPPER_TYPES.has(b.type)) return
       const up = normalizeText(b.type, b.text)
       if (up !== b.text) apply(bl.map((x) => (x.id === id ? { ...x, text: up } : x)), null)
     },
-    [apply, blocksRef]
+    [apply, blocksRef, canEdit]
   )
 
   const handleKeyDown = useCallback(
     (e, id) => {
+      if (!canEdit && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return // read-only: just move around
       const bl = blocksRef.current
       const idx = bl.findIndex((b) => b.id === id)
       if (idx < 0) return
@@ -286,11 +300,12 @@ export default function ScriptPage() {
         }
       }
     },
-    [apply, blocksRef, redo, saveNow, setType, undo]
+    [apply, blocksRef, redo, saveNow, setType, undo, canEdit]
   )
 
   const handlePaste = useCallback(
     (e, id) => {
+      if (!canEdit) return
       const text = e.clipboardData?.getData('text/plain') || ''
       if (!/\n/.test(text.replace(/\r/g, '').replace(/\n+$/, ''))) return // one line: normal paste
       e.preventDefault()
@@ -310,7 +325,7 @@ export default function ScriptPage() {
         pos: 'end',
       })
     },
-    [apply, blocksRef]
+    [apply, blocksRef, canEdit]
   )
 
   const jump = useCallback((id) => {
@@ -344,6 +359,17 @@ export default function ScriptPage() {
   const { scenes, stats, characters } = analysis
 
   const onFocus = useCallback((id) => setActiveId(id), [])
+
+  // open (unresolved) comment threads on each line
+  const countByBlock = useMemo(() => {
+    const m = new Map()
+    for (const c of comments.rows) if (!c.parent_id && !c.resolved) m.set(c.block_id, (m.get(c.block_id) || 0) + 1)
+    return m
+  }, [comments.rows])
+  const openComments = useCallback((blockId) => {
+    setCommentFocus(blockId)
+    setCommentsOpen(true)
+  }, [])
 
   function reorder(from, to) {
     commit(reorderScenes(blocksRef.current, from, to))
@@ -438,7 +464,7 @@ export default function ScriptPage() {
                   key={t}
                   className={'type-btn' + (active?.type === t ? ' on' : '')}
                   title={`${TYPE_LABEL[t]} (Alt+${i + 1})`}
-                  disabled={!active}
+                  disabled={!active || !canEdit}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => active && setType(active.id, t)}
                 >
@@ -447,10 +473,10 @@ export default function ScriptPage() {
               ))}
             </div>
             <div className="tb-actions">
-            <button className="icon-btn" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
+            <button className="icon-btn" onClick={undo} disabled={!canUndo || !canEdit} aria-label="Undo" title="Undo (Ctrl+Z)">
               <Undo2 size={17} />
             </button>
-            <button className="icon-btn" onClick={redo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Y)">
+            <button className="icon-btn" onClick={redo} disabled={!canRedo || !canEdit} aria-label="Redo" title="Redo (Ctrl+Y)">
               <Redo2 size={17} />
             </button>
             <div className="pop-wrap">
@@ -502,13 +528,27 @@ export default function ScriptPage() {
                 </div>
               )}
             </div>
+            <button
+              className={'btn btn-ghost btn-sm' + (commentsOpen ? ' on' : '')}
+              onClick={() => {
+                setCommentFocus(null)
+                setCommentsOpen((o) => !o)
+              }}
+              title="Comments"
+            >
+              <MessageSquare size={16} />{' '}
+              <span className="btn-label">Comments{[...countByBlock.values()].reduce((a, b) => a + b, 0) ? ` (${[...countByBlock.values()].reduce((a, b) => a + b, 0)})` : ''}</span>
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setVersionsOpen(true)} title="Saved versions of the script">
+              <History size={16} /> <span className="btn-label">Versions</span>
+            </button>
             <button className="btn btn-ghost btn-sm" onClick={openExport} title="Print or save as PDF">
               <Printer size={16} /> <span className="btn-label">Export</span>
             </button>
             <button
               className={'btn btn-sm ' + (saveState === 'saved' ? 'btn-ghost saved' : 'btn-primary')}
               onClick={saveNow}
-              disabled={saveState === 'saving'}
+              disabled={saveState === 'saving' || !canEdit}
               title="Save your script (Ctrl+S)"
             >
               {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
@@ -563,12 +603,35 @@ export default function ScriptPage() {
                   onFocus={onFocus}
                   onBlur={handleBlur}
                   onPaste={handlePaste}
+                  commentCount={countByBlock.get(b.id) || 0}
+                  readOnly={!canEdit}
+                  onComment={openComments}
                 />
               ))}
             </div>
           </div>
         </div>
       </section>
+      {commentsOpen && (
+        <CommentsPanel
+          key={commentFocus || 'all'}
+          activeBlock={blocks.find((b) => b.id === activeId) || null}
+          focusBlockId={commentFocus}
+          onClose={() => setCommentsOpen(false)}
+          onJump={jump}
+        />
+      )}
+      {versionsOpen && (
+        <VersionsModal
+          project={project}
+          blocks={blocks}
+          sceneInfo={sceneInfo}
+          canEdit={canEdit}
+          team={team}
+          restoreScript={restoreScript}
+          onClose={() => setVersionsOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -69,6 +69,8 @@ export async function createDemoProject() {
 }
 
 export async function duplicateProject(project) {
+  const { data: sess } = await supabase.auth.getSession()
+  const mineId = sess?.session?.user?.id
   const { data, error } = await supabase
     .from('scripts')
     .select('content, scene_info')
@@ -106,7 +108,7 @@ export async function duplicateProject(project) {
     const pathMap = new Map()
     const copyPath = async (p) => {
       if (!p) return p
-      if (!pathMap.has(p)) pathMap.set(p, await copyImage(p, copy.id))
+      if (!pathMap.has(p)) pathMap.set(p, await copyImage(p, copy.id, mineId))
       return pathMap.get(p)
     }
     const shotRows = []
@@ -162,6 +164,13 @@ export async function setProjectStatus(id, status) {
   if (error) throw error
 }
 
+export async function leaveProject(id) {
+  const { data } = await supabase.auth.getSession()
+  const userId = data?.session?.user?.id
+  const { error } = await supabase.from('project_members').delete().eq('project_id', id).eq('user_id', userId)
+  if (error) throw error
+}
+
 export async function deleteProject(id) {
   const { data } = await supabase.auth.getSession()
   const userId = data?.session?.user?.id
@@ -172,12 +181,15 @@ export async function deleteProject(id) {
 
 // Things shown on the Home page across all projects: upcoming shoot days and open tasks
 export function useDashboardExtras() {
-  const [data, setData] = useState({ days: [], tasks: [] })
+  const [data, setData] = useState({ days: [], tasks: [], mentions: [] })
   useEffect(() => {
     let live = true
     ;(async () => {
       try {
-        const [d, t] = await Promise.all([
+        const { data: sess } = await supabase.auth.getSession()
+        const me = sess?.session?.user?.id
+        const since = new Date(Date.now() - 14 * 86400000).toISOString()
+        const [d, t, m] = await Promise.all([
           supabase.from('shoot_days').select('id, project_id, label, date, call_time, scene_ids').gte('date', todayStr()).order('date', { ascending: true }).limit(5),
           supabase
             .from('tasks')
@@ -185,8 +197,25 @@ export function useDashboardExtras() {
             .neq('status', 'Done')
             .order('due_date', { ascending: true, nullsFirst: false })
             .limit(8),
+          me
+            ? supabase
+                .from('comments')
+                .select('id, project_id, block_id, body, user_id, created_at, resolved')
+                .contains('mentions', [me])
+                .eq('resolved', false)
+                .gte('created_at', since)
+                .order('created_at', { ascending: false })
+                .limit(5)
+            : Promise.resolve({ data: [] }),
         ])
-        if (live) setData({ days: d.data || [], tasks: t.data || [] })
+        let mentions = m.data || []
+        if (mentions.length) {
+          const ids = [...new Set(mentions.map((x) => x.user_id))]
+          const { data: profs } = await supabase.from('profiles').select('id, display_name, email').in('id', ids)
+          const names = Object.fromEntries((profs || []).map((p) => [p.id, p.display_name || p.email || 'Someone']))
+          mentions = mentions.map((x) => ({ ...x, author: names[x.user_id] || 'Someone' }))
+        }
+        if (live) setData({ days: d.data || [], tasks: t.data || [], mentions })
       } catch {
         /* the dashboard just shows nothing extra */
       }

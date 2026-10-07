@@ -130,6 +130,27 @@ export default function Home() {
         </section>
       )}
 
+      {extras.mentions?.length > 0 && (
+        <section className="home-mentions">
+          <div className="section-head">
+            <h2>Mentions of you</h2>
+          </div>
+          <div className="list">
+            {extras.mentions.map((m) => (
+              <button key={m.id} className="list-row" onClick={() => nav(`/project/${m.project_id}/script?scene=${m.block_id}`)}>
+                <span className="lr-title">
+                  {m.author} mentioned you in {titleOf(m.project_id)}
+                  <span className="meta-text lr-sub">{m.body.length > 110 ? m.body.slice(0, 110) + '…' : m.body}</span>
+                </span>
+                <span className="lr-meta">
+                  <span>{timeAgo(m.created_at)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {(extras.days.length > 0 || extras.tasks.length > 0) && (
         <div className="home-two">
           <section>

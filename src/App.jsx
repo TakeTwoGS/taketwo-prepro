@@ -22,6 +22,9 @@ import CrewPage from './pages/CrewPage.jsx'
 import EquipmentPage from './pages/EquipmentPage.jsx'
 import CallSheetPage from './pages/CallSheetPage.jsx'
 import TasksPage from './pages/TasksPage.jsx'
+import OnSetPage from './pages/OnSetPage.jsx'
+import SlatePage from './pages/SlatePage.jsx'
+import ExportsPage from './pages/ExportsPage.jsx'
 
 function FullMessage({ title, children }) {
   return (
@@ -108,6 +111,9 @@ export default function App() {
             <Route path="equipment" element={<EquipmentPage />} />
             <Route path="callsheets" element={<CallSheetPage />} />
             <Route path="tasks" element={<TasksPage />} />
+            <Route path="onset" element={<OnSetPage />} />
+            <Route path="slate" element={<SlatePage />} />
+            <Route path="exports" element={<ExportsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

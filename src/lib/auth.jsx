@@ -9,27 +9,45 @@ export const useAuth = () => useContext(AuthCtx)
 // Several calls at once share one request so the demo is never created twice.
 const inflight = new Map()
 
-function ensureProfile(userId) {
+function ensureProfile(user) {
+  const userId = user.id
   if (inflight.has(userId)) return inflight.get(userId)
   const job = (async () => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
     if (error) throw error
-    if (data) return data
-
-    const { error: insertError } = await supabase.from('profiles').insert({ id: userId })
-    if (!insertError) {
-      try {
-        await createDemoProject()
-      } catch (e) {
-        // The demo is a bonus. Never block sign-in because of it.
-        console.warn('Could not create the demo project', e)
+    let profile = data
+    if (!profile) {
+      const { error: insertError } = await supabase.from('profiles').insert({ id: userId })
+      if (!insertError) {
+        try {
+          await createDemoProject()
+        } catch (e) {
+          // The demo is a bonus. Never block sign-in because of it.
+          console.warn('Could not create the demo project', e)
+        }
+      } else if (insertError.code !== '23505') {
+        throw insertError
       }
-    } else if (insertError.code !== '23505') {
-      throw insertError
+      const { data: fresh, error: readError } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+      if (readError) throw readError
+      profile = fresh
     }
-    const { data: profile, error: readError } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-    if (readError) throw readError
-    return profile
+
+    // Let teammates see my name and picture, and pick up any projects shared with my email.
+    // Both are "nice to have": an older database that has not been updated yet must not block sign-in.
+    const meta = user.user_metadata || {}
+    const info = {
+      display_name: meta.full_name || meta.name || (user.email ? user.email.split('@')[0] : null),
+      email: user.email || null,
+      avatar_url: meta.avatar_url || meta.picture || null,
+    }
+    try {
+      await supabase.from('profiles').update(info).eq('id', userId)
+      await supabase.rpc('accept_invites')
+    } catch {
+      /* ignore */
+    }
+    return profile ? { ...profile, ...info } : profile
   })().finally(() => setTimeout(() => inflight.delete(userId), 3000))
   inflight.set(userId, job)
   return job
@@ -47,6 +65,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const userId = session?.user?.id
+  const sessionUser = session?.user
   useEffect(() => {
     if (!userId) {
       setProfile(null)
@@ -54,7 +73,7 @@ export function AuthProvider({ children }) {
       return
     }
     let cancelled = false
-    ensureProfile(userId)
+    ensureProfile(sessionUser)
       .then((p) => {
         if (!cancelled) {
           setProfile(p)
