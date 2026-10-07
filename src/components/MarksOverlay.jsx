@@ -1,4 +1,6 @@
-// Pen strokes and arrows drawn on top of a storyboard frame.
+import { FigureShape } from './Figures.jsx'
+
+// Pen strokes, arrows, and people drawn on top of a storyboard frame.
 // Positions are saved as fractions (0 to 1) of the frame, so they fit any size.
 
 function Arrow({ m, W, H }) {
@@ -25,7 +27,9 @@ export default function MarksOverlay({ marks = [], ratio = 16 / 9, draft = null 
   return (
     <svg className="marks" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
       {all.map((m, i) =>
-        m.t === 'arrow' ? (
+        m.t === 'fig' ? (
+          <FigureShape key={m.id || i} mark={m} W={W} H={H} />
+        ) : m.t === 'arrow' ? (
           <Arrow key={i} m={m} W={W} H={H} />
         ) : m.p.length === 1 ? (
           <circle key={i} cx={m.p[0][0] * W} cy={m.p[0][1] * H} r="3.5" fill={m.c} />

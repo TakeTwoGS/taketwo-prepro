@@ -84,9 +84,23 @@ export default function Overview() {
       </div>
 
       {project.is_demo && (
-        <div className="notice info">
-          This is a sample project so you can see how things fit together. Try editing the script, then open the Scenes tab.
-          You can delete it any time from the menu in the top right.
+        <div className="notice info demo-tour">
+          <strong>This is a sample film that shows everything working together.</strong> A few things to try:
+          <ul>
+            <li>
+              Open <Link to={`${base}/storyboard`}>Storyboard</Link>, click a frame, and use the <strong>People</strong> tool to move, turn, and pose a figure.
+            </li>
+            <li>
+              Look at the <Link to={`${base}/schedule`}>Schedule</Link>. Day 2 has a warning and a tip, and nothing moves unless you move it.
+            </li>
+            <li>
+              Open <Link to={`${base}/onset`}>On-Set Mode</Link> and finish a shot. Check the <Link to={`${base}/slate`}>slate</Link> too.
+            </li>
+            <li>
+              See the <Link to={`${base}/callsheets`}>call sheet</Link>, the <Link to={`${base}/breakdown`}>breakdown</Link>, and the <Link to={`${base}/equipment`}>equipment</Link> checklist.
+            </li>
+          </ul>
+          Delete it any time from the menu in the top right. The sample gear it adds lives in your Equipment list, and you can delete that too.
         </div>
       )}
 

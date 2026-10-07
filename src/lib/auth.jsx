@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase.js'
-import { createDemoProject } from './projects.js'
+import { createDemoProject, refreshDemo } from './projects.js'
 
 const AuthCtx = createContext(null)
 export const useAuth = () => useContext(AuthCtx)
@@ -9,13 +9,14 @@ export const useAuth = () => useContext(AuthCtx)
 // Several calls at once share one request so the demo is never created twice.
 const inflight = new Map()
 
-function ensureProfile(user) {
+export function ensureProfile(user) {
   const userId = user.id
   if (inflight.has(userId)) return inflight.get(userId)
   const job = (async () => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
     if (error) throw error
     let profile = data
+    const isNew = !profile
     if (!profile) {
       const { error: insertError } = await supabase.from('profiles').insert({ id: userId })
       if (!insertError) {
@@ -46,6 +47,18 @@ function ensureProfile(user) {
       await supabase.rpc('accept_invites')
     } catch {
       /* ignore */
+    }
+
+    // Sample project version 2 replaces the first sample. Claiming it with one atomic update means it only happens once.
+    try {
+      if (isNew) {
+        await supabase.from('profiles').update({ demo_version: 2 }).eq('id', userId)
+      } else {
+        const { data: claimed, error: claimError } = await supabase.from('profiles').update({ demo_version: 2 }).eq('id', userId).lt('demo_version', 2).select('id')
+        if (!claimError && claimed && claimed.length) await refreshDemo()
+      }
+    } catch {
+      /* the older database has not been updated yet: leave the sample as it is */
     }
     return profile ? { ...profile, ...info } : profile
   })().finally(() => setTimeout(() => inflight.delete(userId), 3000))

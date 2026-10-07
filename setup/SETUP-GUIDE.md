@@ -2,8 +2,12 @@
 
 ## Updating to the latest zip
 
-Zip 5 (tools and learn) needs NO database changes. Just upload the files to GitHub.
-If you are coming from before Zip 4 (on-set mode, slate, exports, sharing and comments), run the SQL too:
+This update (new sample film and posable people for storyboards) needs ONE small database change, so run
+`supabase-setup.sql` again in the SQL Editor (it is safe to run again). Then upload the files to GitHub.
+The next time you log in, an older sample project is swapped for the new one. Anyone who already deleted their sample does not get one back.
+If you want to keep anything you made inside the old sample, use Projects, the three dots, then Duplicate BEFORE you log in to the new version.
+
+Full steps:
 
 Each new zip needs the same two steps:
 

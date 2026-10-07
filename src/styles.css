@@ -5831,3 +5831,114 @@ select option {
     grid-template-columns: 1fr;
   }
 }
+
+/* ----- people (posable figures) in the frame editor ----- */
+.fig-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: default;
+}
+.fig-hit {
+  cursor: grab;
+}
+.fig-handle {
+  fill: #fff;
+  stroke: #7e5bef;
+  stroke-width: 0.35;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2px;
+  cursor: pointer;
+}
+.fig-handle.rot {
+  fill: #b199ff;
+  cursor: grab;
+}
+.fig-handle.size {
+  fill: #f472ff;
+  cursor: nwse-resize;
+}
+.fig-handle.joint {
+  fill: #ffc247;
+  stroke: #1a1320;
+  cursor: crosshair;
+}
+.fig-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+.fig-lib-head,
+.fig-edit-title {
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+.fig-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  cursor: grab;
+}
+.fig-pick:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.fig-pick svg {
+  width: 100%;
+  height: 54px;
+}
+.fig-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+}
+.fig-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent-strong);
+}
+.fig-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+@media (max-width: 700px) {
+  .fig-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-tour ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.demo-tour li {
+  margin-bottom: 4px;
+}
+.demo-tour a {
+  color: var(--accent);
+  text-decoration: underline;
+}

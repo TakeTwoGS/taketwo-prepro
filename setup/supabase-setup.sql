@@ -679,3 +679,8 @@ end $$;
 drop trigger if exists comments_touch on public.comments;
 create trigger comments_touch before update on public.comments
   for each row execute function public.touch_updated_at();
+
+-- =====================================================================
+-- Sample project refresh (adds a version number to each profile)
+-- =====================================================================
+alter table public.profiles add column if not exists demo_version integer not null default 1;

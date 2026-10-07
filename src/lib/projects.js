@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { todayStr } from './dates.js'
 import { supabase } from './supabase.js'
 import { analyze, newBlock, parsePlainText } from './screenplay.js'
-import { buildDemo, DEMO_TITLE } from './demo.js'
+import { buildDemoData } from './demo.js'
 import { copyImage, removeProjectFiles } from './images.js'
 import { uuid } from './rows.js'
 
@@ -63,9 +63,51 @@ export async function createProject({ title, text = '', isDemo = false, blocks, 
   return project
 }
 
+// Builds the sample film: a finished script plus a storyboard, shot list, schedule, cast and crew, gear, tasks,
+// takes, versions, and a comment, so a new person can see every part working together.
+// Each extra part is "best effort": if one table is missing, the rest still get created.
 export async function createDemoProject() {
-  const { blocks, sceneInfo } = buildDemo()
-  return createProject({ title: DEMO_TITLE, isDemo: true, blocks, sceneInfo })
+  const d = buildDemoData()
+  const project = await createProject({ title: d.title, isDemo: true, blocks: d.blocks, sceneInfo: d.sceneInfo })
+  const pid = project.id
+  const into = async (table, rows, own = false) => {
+    if (!rows.length) return true
+    const { error } = await supabase.from(table).insert(own ? rows : rows.map((r) => ({ ...r, project_id: pid })))
+    if (error) console.warn(`Demo: could not add ${table}`, error.message)
+    return !error
+  }
+  await into('shots', d.shots)
+  await into('characters', d.characters)
+  await into('locations', d.locations)
+  await into('breakdown_items', d.tags)
+  await into('people', d.people)
+  await into('shoot_days', d.days)
+  if (await into('equipment_items', d.gear, true)) await into('equipment_uses', d.uses)
+  await into('tasks', d.tasks)
+  await into('takes', d.takes)
+  await into('script_versions', d.versions)
+  await into('comments', d.comments)
+  const { error } = await supabase.from('projects').update({ slate: d.slate, board_ratio: d.boardRatio }).eq('id', pid)
+  if (error) console.warn('Demo: could not set up the slate', error.message)
+  return project
+}
+
+// Swaps an older sample project for the current one. Only people who still have a sample project get a new one,
+// so anyone who deleted theirs does not get it back.
+export async function refreshDemo() {
+  const { data: sess } = await supabase.auth.getSession()
+  const me = sess?.session?.user?.id
+  if (!me) return null
+  const { data: old } = await supabase.from('projects').select('id').eq('is_demo', true).eq('user_id', me)
+  if (!old || !old.length) return null
+  for (const p of old) {
+    try {
+      await deleteProject(p.id)
+    } catch (e) {
+      console.warn('Could not remove the old sample project', e)
+    }
+  }
+  return createDemoProject()
 }
 
 export async function duplicateProject(project) {
