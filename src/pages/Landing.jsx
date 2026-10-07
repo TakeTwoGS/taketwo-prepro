@@ -1,5 +1,5 @@
 import { Link, Navigate } from 'react-router-dom'
-import { Cloud, GraduationCap, ListTree, PenLine, Printer, StickyNote } from 'lucide-react'
+import { CalendarDays, Clapperboard, GraduationCap, Layers, ListTree, PenLine, Printer, Rows3, Users } from 'lucide-react'
 import GoogleButton from '../components/GoogleButton.jsx'
 import Logo from '../components/Logo.jsx'
 import { useAuth } from '../lib/auth.jsx'
@@ -7,20 +7,16 @@ import { useAuth } from '../lib/auth.jsx'
 const FEATURES = [
   { icon: PenLine, tone: 'pink', title: 'A real screenplay editor', text: 'Press Enter and Tab to move between scene headings, action, and dialogue. The formatting takes care of itself.' },
   { icon: ListTree, tone: 'violet', title: 'Scenes build themselves', text: 'Every scene heading becomes a scene with its location, time of day, and characters. Drag to reorder.' },
-  { icon: StickyNote, tone: 'amber', title: 'Notes on every scene', text: 'Keep props, wardrobe, makeup, and production notes right next to the scene they belong to.' },
-  { icon: GraduationCap, tone: 'blue', title: 'Learn as you go', text: 'Beginner mode explains filmmaking terms in plain language, right where you meet them.' },
-  { icon: Printer, tone: 'teal', title: 'Print or save as PDF', text: 'Export a clean, industry-standard script with a title page, ready for your cast and crew.' },
-  { icon: Cloud, tone: 'rose', title: 'Saved automatically', text: 'Your work saves as you type, and you can open it from any device by logging in.' },
+  { icon: Layers, tone: 'blue', title: 'Storyboards without drawing skills', text: 'Drop in pictures, or sketch right on a frame. Arrows show where people and the camera move.' },
+  { icon: Rows3, tone: 'teal', title: 'Shot lists that stay in sync', text: 'A storyboard frame becomes a shot with one click. Change it in one place and it updates everywhere.' },
+  { icon: CalendarDays, tone: 'amber', title: 'Schedules and call sheets', text: 'Drag scenes onto shoot days, get helpful warnings, and print a call sheet built from your plan.' },
+  { icon: Clapperboard, tone: 'rose', title: 'On-Set Mode and a digital slate', text: 'Big buttons for filming day. Log takes, track progress, and show a slate on your phone.' },
+  { icon: Users, tone: 'violet', title: 'Work together', text: 'Share a project, leave comments, save script versions, and watch edits appear live.' },
+  { icon: GraduationCap, tone: 'blue', title: 'Tools and guides', text: 'Calculators, shot guides, a film glossary, and short lessons. Beginner mode explains terms as you go.' },
+  { icon: Printer, tone: 'teal', title: 'Print or save as PDF', text: 'Clean exports of your script, storyboard, shot list, schedule, call sheet, and checklists.' },
 ]
 
-const STEPS = [
-  { name: 'Script', live: true },
-  { name: 'Scenes', live: true },
-  { name: 'Storyboard' },
-  { name: 'Shot list' },
-  { name: 'Schedule' },
-  { name: 'On set' },
-]
+const STEPS = ['Script', 'Scenes', 'Storyboard', 'Shot list', 'Schedule', 'Call sheet', 'On set']
 
 function AppPreview() {
   return (
@@ -115,13 +111,12 @@ export default function Landing() {
 
       <section id="roadmap" className="land-section">
         <h2 className="land-h2">One place from first draft to first day on set</h2>
-        <p className="land-sub">Everything you enter once is reused everywhere else. Script and scenes are ready now, and the rest is on the way.</p>
+        <p className="land-sub">Everything you enter once is reused everywhere else, from the first scene to the last take.</p>
         <ol className="steps">
-          {STEPS.map((s) => (
-            <li key={s.name} className={s.live ? 'live' : ''}>
+          {STEPS.map((name) => (
+            <li key={name} className="live">
               <span className="step-dot" />
-              <span className="step-name">{s.name}</span>
-              <span className="step-tag">{s.live ? 'Ready now' : 'Coming soon'}</span>
+              <span className="step-name">{name}</span>
             </li>
           ))}
         </ol>

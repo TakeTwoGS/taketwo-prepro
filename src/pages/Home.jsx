@@ -233,6 +233,32 @@ export default function Home() {
         </section>
       )}
 
+      <section className="home-learn">
+        <div className="section-head">
+          <h2>Tools and guides</h2>
+          <Link to="/learn" className="text-link">
+            Browse all guides
+          </Link>
+        </div>
+        <div className="chips">
+          <Link className="chip btn-chip" to="/learn/plan-a-shoot">
+            How to plan a shoot
+          </Link>
+          <Link className="chip btn-chip" to="/tools/storage">
+            Storage calculator
+          </Link>
+          <Link className="chip btn-chip" to="/tools/aspect-ratio">
+            Aspect ratio visualizer
+          </Link>
+          <Link className="chip btn-chip" to="/tools/camera-movement">
+            Camera movement guide
+          </Link>
+          <Link className="chip btn-chip" to="/tools/glossary">
+            Film glossary
+          </Link>
+        </div>
+      </section>
+
       {modal && <NewProjectModal startWithPaste={modal === 'import'} onClose={() => setModal(null)} />}
     </div>
   )

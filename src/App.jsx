@@ -25,6 +25,8 @@ import TasksPage from './pages/TasksPage.jsx'
 import OnSetPage from './pages/OnSetPage.jsx'
 import SlatePage from './pages/SlatePage.jsx'
 import ExportsPage from './pages/ExportsPage.jsx'
+import ToolsPage from './pages/ToolsPage.jsx'
+import LearnPage from './pages/LearnPage.jsx'
 
 function FullMessage({ title, children }) {
   return (
@@ -97,6 +99,10 @@ export default function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/scripts" element={<Scripts />} />
+          <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/tools/:slug" element={<ToolsPage />} />
+          <Route path="/learn" element={<LearnPage />} />
+          <Route path="/learn/:slug" element={<LearnPage />} />
           <Route path="/project/:projectId" element={<ProjectLayout />}>
             <Route index element={<Overview />} />
             <Route path="script" element={<ScriptPage />} />

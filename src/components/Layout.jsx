@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { FileText, FolderKanban, House } from 'lucide-react'
+import { FileText, FolderKanban, GraduationCap, House, Wrench } from 'lucide-react'
 import Menu from './Menu.jsx'
 import Logo from './Logo.jsx'
 import { useAuth } from '../lib/auth.jsx'
@@ -22,6 +22,12 @@ export default function Layout() {
           </NavLink>
           <NavLink to="/scripts">
             <FileText size={16} /> <span>Scripts</span>
+          </NavLink>
+          <NavLink to="/tools">
+            <Wrench size={16} /> <span>Tools</span>
+          </NavLink>
+          <NavLink to="/learn">
+            <GraduationCap size={16} /> <span>Learn</span>
           </NavLink>
         </nav>
         <div className="topbar-right">

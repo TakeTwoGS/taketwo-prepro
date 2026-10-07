@@ -1,6 +1,9 @@
 # TakeTwo PrePro: setup guide
 
-## Updating to the latest zip (Zip 4: on-set mode, slate, exports, sharing and comments)
+## Updating to the latest zip
+
+Zip 5 (tools and learn) needs NO database changes. Just upload the files to GitHub.
+If you are coming from before Zip 4 (on-set mode, slate, exports, sharing and comments), run the SQL too:
 
 Each new zip needs the same two steps:
 
