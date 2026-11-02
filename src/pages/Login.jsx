@@ -11,6 +11,9 @@ export default function Login() {
         <h1 className="auth-title">Log in or sign up</h1>
         <p className="muted-text">Use your Google account. New here? An account is created the first time you log in.</p>
         <GoogleButton />
+        <p className="muted-text" style={{ fontSize: 12 }}>
+          By continuing you agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.
+        </p>
         <div className="auth-links">
           <Link className="link-btn" to="/">
             Back to the home page

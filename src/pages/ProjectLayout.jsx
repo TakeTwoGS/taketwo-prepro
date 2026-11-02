@@ -146,6 +146,7 @@ export function Workspace({ initial }) {
   const baseBlocks = useRef(initial.blocks)
   const baseInfo = useRef(initial.sceneInfo)
   const conflictRetries = useRef(0)
+  const ownStamps = useRef(new Set())
 
   // ----- who am I in this project? -----
   const [members, setMembers] = useState(initial.members || [])
@@ -229,7 +230,13 @@ export function Workspace({ initial }) {
   // ----- the script: saving, and merging with what other people saved -----
   const applyRemote = useCallback(
     (row) => {
-      if (!row || row.updated_at === knownAt.current) return // that was my own save coming back
+      if (!row) return
+      // My own saves come back through realtime, sometimes late and out of order.
+      // Anything I saved myself, or anything older than what I already know, is not news.
+      if (row.updated_at === knownAt.current || ownStamps.current.has(row.updated_at)) return
+      const kt = knownAt.current ? Date.parse(knownAt.current) : NaN
+      const rt = Date.parse(row.updated_at)
+      if (!Number.isNaN(kt) && !Number.isNaN(rt) && rt <= kt) return
       const theirsBlocks = Array.isArray(row.content) && row.content.length ? row.content : blocksRef.current
       const theirsInfo = row.scene_info || {}
       const mine = blocksRef.current
@@ -237,6 +244,10 @@ export function Workspace({ initial }) {
       let nextBlocks = theirsBlocks
       let nextInfo = theirsInfo
       let conflicts = []
+      if (sameBlocks(theirsBlocks, baseBlocks.current) && JSON.stringify(theirsInfo) === JSON.stringify(baseInfo.current)) {
+        knownAt.current = row.updated_at // same content as I already have
+        return
+      }
       if (dirty.current) {
         const m = mergeBlocks(baseBlocks.current, mine, theirsBlocks)
         nextBlocks = m.blocks
@@ -295,7 +306,11 @@ export function Workspace({ initial }) {
       return
     }
     conflictRetries.current = 0
-    if (data && data[0]) knownAt.current = data[0].updated_at
+    if (data && data[0]) {
+      knownAt.current = data[0].updated_at
+      ownStamps.current.add(data[0].updated_at)
+      if (ownStamps.current.size > 50) ownStamps.current.delete(ownStamps.current.values().next().value)
+    }
     baseBlocks.current = snapBlocks
     baseInfo.current = snapInfo
     if (blocksRef.current !== snapBlocks || infoRef.current !== snapInfo) {
