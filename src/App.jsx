@@ -27,6 +27,7 @@ import SlatePage from './pages/SlatePage.jsx'
 import ExportsPage from './pages/ExportsPage.jsx'
 import ToolsPage from './pages/ToolsPage.jsx'
 import LearnPage from './pages/LearnPage.jsx'
+import { Privacy, Terms } from './pages/Legal.jsx'
 
 function FullMessage({ title, children }) {
   return (
@@ -89,6 +90,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<LoginRoute />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route
           element={
             <RequireAuth>
